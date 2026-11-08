@@ -1,0 +1,10 @@
+import {readFileSync,writeFileSync,mkdirSync,copyFileSync,readdirSync} from 'node:fs';
+const file=name=>new URL(name,import.meta.url);
+const read=name=>readFileSync(file(name),'utf8').replace(/^\uFEFF/,'');
+const validate=read('./worker/validate-legacy.js')+'\n'+read('./worker/validate.js');
+const media=Object.fromEntries(readdirSync(file('./worker/media/')).map(name=>[name.slice(0,-4),readFileSync(file('./worker/media/'+name)).toString('base64')]));
+const js='const illustrated='+JSON.stringify(Object.keys(media))+';\n'+[validate,read('./worker/program.js'),read('./worker/mobile.js')].join('\n');
+const html=read('./worker/mobile.html').replace('@@JS@@',()=>js);
+mkdirSync(file('./dist/server/'),{recursive:true});mkdirSync(file('./dist/.openai/'),{recursive:true});
+copyFileSync(file('./.openai/hosting.json'),file('./dist/.openai/hosting.json'));
+writeFileSync(file('./dist/server/index.js'),'const page='+JSON.stringify(html)+';\nconst media='+JSON.stringify(media)+';\n'+validate+'\n'+read('./worker/server.js'));
