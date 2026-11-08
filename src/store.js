@@ -1,7 +1,7 @@
 import {validate} from '../shared/validate.js';
 
 const stateKey = 'zal-beg-cloud-v2';
-export function createJournalStore({storage, request = fetch, events = window} = {}) {
+export function createJournalStore({storage, request = fetch, events = window, onUnauthorized = () => {}} = {}) {
   let snapshot = {journal: {}, status: 'Подключение…', ready: false};
   let revision = 0, dirty = false, loaded = false, sending = false, conflict = false;
   let epoch = 0, timer, disposed = false, connecting = false;
@@ -23,6 +23,7 @@ export function createJournalStore({storage, request = fetch, events = window} =
     let failed = false;
     try {
       const response = await request('/api/journal', {method: 'PUT', headers: {'content-type': 'application/json'}, body: JSON.stringify({revision, journal: snapshot.journal})});
+      if (response.status === 401) {onUnauthorized(); throw Error('Войди в журнал повторно.');}
       if (response.status === 409) {
         conflict = true;
         throw Error('Журнал изменился на другом устройстве. Экспортируй местную копию перед обновлением.');
@@ -42,6 +43,7 @@ export function createJournalStore({storage, request = fetch, events = window} =
     const start = epoch;
     try {
       const response = await request('/api/journal', {cache: 'no-store'});
+      if (response.status === 401) {onUnauthorized(); throw Error('Войди в журнал повторно.');}
       if (!response.ok) throw Error();
       const remote = await response.json();
       validate({version: 1, journal: remote.journal});
