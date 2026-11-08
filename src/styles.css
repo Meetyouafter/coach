@@ -97,9 +97,12 @@ dialog::backdrop { background: var(--backdrop); }
 .theme-toggle[data-state="checked"] { background: var(--control); color: var(--secondary); }
 .theme-toggle-thumb { position: absolute; top: 5px; left: 5px; display: grid; place-items: center; width: 32px; height: 32px; background: var(--panel); border: 1px solid var(--line); border-radius: 50%; box-shadow: 0 2px 5px #00000015; transform: translateX(0); transition: transform 380ms cubic-bezier(.22, 1, .36, 1), background-color 420ms ease, border-color 420ms ease; pointer-events: none; }
 .theme-toggle-thumb[data-state="checked"] { transform: translateX(32px); }
-.theme-toggle-symbol { display: grid; place-items: center; width: 100%; height: 100%; animation: theme-symbol-in 220ms ease-out; }
+.theme-toggle-sun, .theme-toggle-moon { position: absolute; z-index: 2; top: 11px; color: var(--muted); pointer-events: none; }
+.theme-toggle-sun { left: 12px; }
+.theme-toggle-moon { right: 12px; }
+.theme-toggle[data-state="unchecked"] .theme-toggle-sun { color: var(--accent); }
+.theme-toggle[data-state="checked"] .theme-toggle-moon { color: var(--secondary); }
 .theme-toggle:active:not(:disabled) { transform: none; }
-@keyframes theme-symbol-in { from { opacity: 0; transform: rotate(-35deg) scale(.8); } to { opacity: 1; transform: rotate(0) scale(1); } }
 @media (hover: hover) { .theme-toggle:hover:not(:disabled) { background: var(--accent-soft); } .theme-toggle[data-state="checked"]:hover:not(:disabled) { background: var(--control); } }
 .brand-heading { display: flex; align-items: center; gap: 10px; }
 .brand-icon { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: var(--accent); color: var(--on-accent); }
@@ -124,3 +127,10 @@ dialog::backdrop { background: var(--backdrop); }
 .auth-card .error:empty { display: none; }
 @media (max-width: 380px) { .header-actions { flex-direction: column; gap: 5px; } .sign-out { min-height: 32px; padding-block: 4px; } .app-brand h1 { font-size: 20px; } .brand-heading { gap: 8px; } .brand-icon { width: 36px; height: 36px; border-radius: 11px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.auth-note { font-size: 12px; line-height: 1.5; }
+.auth-card > h2, .auth-card > .muted, .auth-card > .auth-tabs, .auth-card > form { margin-bottom: 18px; }
+.auth-card .tag { margin-bottom: 8px; }
+.auth-tabs { display: flex; gap: 8px; }
+.auth-tabs button { flex: 1; }
+.auth-tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--fg); font-weight: 700; }

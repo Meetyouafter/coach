@@ -66,13 +66,11 @@ function History({journal, open, update, initialExpanded}) {
     <Legacy journal={journal} /><Panel><button onClick={download}>Экспорт JSON</button><button onClick={() => file.current.click()}>Импорт JSON</button><input ref={file} type="file" accept=".json,application/json" hidden onChange={upload} /><p role="alert" className="error">{error}</p></Panel>
   </>;
 }
-export function App({onUnauthorized, onSignOut}) {
+export function App({userId, onUnauthorized, onSignOut}) {
   const [store] = useState(() => {
-    let storage;
-    try {storage = window.localStorage;} catch { /* Storage can be blocked by the browser. */ }
-    return createJournalStore({storage, onUnauthorized});
+    return createJournalStore({userId, onUnauthorized});
   });
-  const {journal, status, ready: loaded} = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const {journal, status, ready: loaded, error: loadError} = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [tab, setTab] = useState('today');
   const [active, setActive] = useState(null);
   const [expanded, setExpanded] = useState('');
@@ -85,8 +83,9 @@ export function App({onUnauthorized, onSignOut}) {
     setActive(key); setTab('today');
   }
   function finish() {setExpanded(active); setActive(null); setTab('history');}
-  return <><AppHeader status={status} onSignOut={onSignOut} /><main><div id="screen">
-    {!loaded ? <p className="boot">Загрузка журнала…</p> : tab === 'plan' ? <Plan sessions={sessions} open={open} /> : tab === 'history' ? <History journal={journal} open={open} update={store.update} initialExpanded={expanded} /> : active ? <Workout key={active} journal={journal} sessionKey={active} update={store.update} finish={finish} showTechnique={setTechnique} /> : key ? (() => {const [w, d] = key.split('-').map(Number); return <Panel><p className="tag">{sessions[key] ? 'Начата' : 'Ближайшая тренировка'}</p><h2>{names[d]} · неделя {w}</h2><p>{workout(w, d, sessions[key]?.deferred).map(e => e.id === 'run' ? e.target : e.name).join(' → ')}</p><button className="primary" onClick={() => open(key)}>{sessions[key] ? 'Продолжить занятие' : 'Начать занятие'}</button></Panel>;})() : <Panel><h2>Цикл завершён</h2><button onClick={() => setTab('history')}>Открыть историю</button></Panel>}
+  async function signOut() {if (await store.flush()) await onSignOut();}
+  return <><AppHeader status={status} onSignOut={signOut} /><main><div id="screen">
+    {!loaded ? <Panel><p className="boot">{loadError || 'Загрузка журнала…'}</p>{loadError && <button onClick={store.retry}>Повторить</button>}</Panel> : tab === 'plan' ? <Plan sessions={sessions} open={open} /> : tab === 'history' ? <History journal={journal} open={open} update={store.update} initialExpanded={expanded} /> : active ? <Workout key={active} journal={journal} sessionKey={active} update={store.update} finish={finish} showTechnique={setTechnique} /> : key ? (() => {const [w, d] = key.split('-').map(Number); return <Panel><p className="tag">{sessions[key] ? 'Начата' : 'Ближайшая тренировка'}</p><h2>{names[d]} · неделя {w}</h2><p>{workout(w, d, sessions[key]?.deferred).map(e => e.id === 'run' ? e.target : e.name).join(' → ')}</p><button className="primary" onClick={() => open(key)}>{sessions[key] ? 'Продолжить занятие' : 'Начать занятие'}</button></Panel>;})() : <Panel><h2>Цикл завершён</h2><button onClick={() => setTab('history')}>Открыть историю</button></Panel>}
     </div></main><nav className="bottom" aria-label="Разделы приложения"><div>{[['today','Сегодня'],['plan','План'],['history','История']].map(([id, label]) => <button key={id} aria-current={tab === id} onClick={() => {setTab(id); setActive(null); window.scrollTo(0, 0);}}>{label}</button>)}</div></nav>
     {technique && <Technique exercise={technique} close={() => setTechnique(null)} />}
   </>;

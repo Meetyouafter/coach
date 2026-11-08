@@ -13,10 +13,8 @@ export function ThemeControl() {
     aria-label="Тёмная тема"
     title={dark ? 'Включить светлую тему' : 'Включить тёмную тему'}
   >
-    <Switch.Thumb className="theme-toggle-thumb">
-      <span className="theme-toggle-symbol" key={theme} aria-hidden="true">
-        {dark ? <Moon size={18} strokeWidth={1.8} /> : <Sun size={19} strokeWidth={1.8} />}
-      </span>
-    </Switch.Thumb>
+    <Sun className="theme-toggle-sun" size={19} strokeWidth={1.8} aria-hidden="true" />
+    <Moon className="theme-toggle-moon" size={18} strokeWidth={1.8} aria-hidden="true" />
+    <Switch.Thumb className="theme-toggle-thumb" />
   </Switch.Root>;
 }

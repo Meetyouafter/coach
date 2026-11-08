@@ -11,3 +11,9 @@ test('startup identifies missing, invalid and example database settings without 
   assert.deepEqual(configurationErrors(valid), []);
   assert.ok(!configurationErrors({...valid, APP_PASSWORD: ''}).join().includes('private-value'));
 });
+
+test('AUTH_SECRET config works independently of the legacy owner password', () => {
+  const valid = {DATABASE_URL: 'postgresql://owner:test@db.example.test/neondb', AUTH_SECRET: 'a-new-server-secret-32-characters'};
+  assert.deepEqual(configurationErrors(valid), []);
+  assert.equal(configurationErrors({...valid, AUTH_SECRET:''}).length,1);
+});

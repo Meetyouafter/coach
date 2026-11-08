@@ -1,19 +1,33 @@
-import {authenticated, issueSession, passwordMatches, sessionCookie} from '../server/auth.js';
+import {authenticatedSession, issueSession, matchesLegacyOwner, sessionCookie} from '../server/auth.js';
+import {databaseQuery} from '../server/database.js';
+import {createUserRepository, normalizeLogin} from '../server/users.js';
 import {apiErrors, body, HttpError, json, sameOrigin} from '../server/http.js';
 
-export function createSessionHandler(env = process.env) {
+export function createSessionHandler({env = process.env, repository} = {}) {
   return apiErrors(async (req, res) => {
-    if (req.method === 'GET') return json(res, 200, {authenticated: authenticated(req, env)});
+    if (req.method === 'GET') {
+      const session = authenticatedSession(req, env);
+      if (!session) return json(res, 200, {authenticated: false, user: null});
+      const users = repository ?? createUserRepository(databaseQuery(env));
+      const user = await users.find(session.userId);
+      return json(res, 200, {authenticated: !!user, user});
+    }
     if (!['POST', 'DELETE'].includes(req.method)) {res.setHeader('Allow', 'GET, POST, DELETE'); return json(res, 405, {error: 'Метод не поддерживается.'});}
     if (!sameOrigin(req)) throw new HttpError(403, 'Недопустимый источник запроса.');
     if (req.method === 'DELETE') {
       res.setHeader('Set-Cookie', sessionCookie(req, ''));
-      return json(res, 200, {authenticated: false});
+      return json(res, 200, {authenticated: false, user: null});
     }
-    const payload = await body(req, 4096);
-    if (!passwordMatches(payload?.password, env)) throw new HttpError(401, 'Неверный пароль.');
-    res.setHeader('Set-Cookie', sessionCookie(req, issueSession(env)));
-    return json(res, 200, {authenticated: true});
+    const payload = await body(req, 8192);
+    const login = normalizeLogin(payload?.login);
+    const password = payload?.password;
+    if (typeof password !== 'string' || password.length < 16 || password.length > 1024) throw new HttpError(400, 'Пароль должен содержать от 16 до 1024 символов.');
+    if (!['login', 'register'].includes(payload.action)) throw new HttpError(400, 'Выбери вход или регистрацию.');
+    const users = repository ?? createUserRepository(databaseQuery(env));
+    const user = payload.action === 'register' ? await users.register(login, password, env) : await users.authenticate(login, password);
+    if (matchesLegacyOwner(password, env)) await users.claimLegacyJournal(user.id);
+    res.setHeader('Set-Cookie', sessionCookie(req, issueSession(user.id, env)));
+    return json(res, 200, {authenticated: true, user});
   });
 }
 export default createSessionHandler();

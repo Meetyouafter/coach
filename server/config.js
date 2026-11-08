@@ -12,8 +12,9 @@ export function databaseConfigError(env = process.env) {
 
 export function configurationErrors(env = process.env) {
   const errors = [databaseConfigError(env)];
-  if (!env.APP_PASSWORD || env.APP_PASSWORD.length < 16 || env.APP_PASSWORD.length > 1024) {
-    errors.push('Задай APP_PASSWORD длиной 16–1024 символа в .env.local или переменных окружения Vercel.');
+  const secret = env.AUTH_SECRET ?? env.APP_PASSWORD;
+  if (!secret || secret.length < 16 || secret.length > 1024) {
+    errors.push('Задай AUTH_SECRET длиной 16–1024 символа в .env.local или переменных окружения Vercel.');
   }
   return errors.filter(Boolean);
 }
