@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState, useSyncExternalStore} from 'react';
+import {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
 import {EX, W, names, phases, ready, workout} from '../shared/program.js';
 import {validate} from '../shared/validate.js';
 import {dateLabel, describe, lastRows, pace} from './journal.js';
@@ -6,6 +6,8 @@ import {createJournalStore} from './store.js';
 import {Panel, Technique, Workout} from './components/Workout.jsx';
 import {AppHeader} from './components/AppHeader.jsx';
 import {ErrorNotice} from './components/ErrorNotice.jsx';
+import {Sidebar} from './components/Sidebar.jsx';
+import {ExerciseLibrary} from './exercises/ExerciseLibrary.jsx';
 
 const historyEnabled = false;
 
@@ -75,9 +77,12 @@ export function App({userId, onUnauthorized, onSignOut}) {
   });
   const {journal, status, ready: loaded, error: loadError} = useSyncExternalStore(store.subscribe, store.getSnapshot);
   const [tab, setTab] = useState('today');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
   const [active, setActive] = useState(null);
   const [expanded, setExpanded] = useState('');
   const [technique, setTechnique] = useState(null);
+  const [catalogSearch, setCatalogSearch] = useState('');
   useEffect(() => store.start(), [store]);
   const sessions = journal.trainingV2?.sessions ?? {};
   const key = nextKey(sessions);
@@ -87,9 +92,9 @@ export function App({userId, onUnauthorized, onSignOut}) {
   }
   function finish() {setExpanded(active); setActive(null); setTab(historyEnabled ? 'history' : 'today');}
   async function signOut() {if (await store.flush()) await onSignOut();}
-  return <><AppHeader status={status} onSignOut={signOut} /><main>{loaded && <ErrorNotice title="Проблема с синхронизацией" message={loadError} onAction={store.retry} />}<div id="screen">
-    {!loaded ? <Panel>{loadError ? <ErrorNotice title="Журнал пока недоступен" message={loadError} onAction={store.retry} actionLabel="Попробовать снова" /> : <p className="boot">Загрузка журнала…</p>}</Panel> : tab === 'plan' ? <Plan sessions={sessions} open={open} /> : historyEnabled && tab === 'history' ? <History journal={journal} open={open} update={store.update} initialExpanded={expanded} /> : active ? <Workout key={active} journal={journal} sessionKey={active} update={store.update} finish={finish} showTechnique={setTechnique} /> : key ? (() => {const [w, d] = key.split('-').map(Number); return <Panel><p className="tag">{sessions[key] ? 'Начата' : 'Ближайшая тренировка'}</p><h2>{names[d]} · неделя {w}</h2><p>{workout(w, d, sessions[key]?.deferred).map(e => e.id === 'run' ? e.target : e.name).join(' → ')}</p><button className="primary" onClick={() => open(key)}>{sessions[key] ? 'Продолжить занятие' : 'Начать занятие'}</button></Panel>;})() : <Panel><h2>Цикл завершён</h2><button onClick={() => setTab(historyEnabled ? 'history' : 'plan')}>{historyEnabled ? 'Открыть историю' : 'Открыть план'}</button></Panel>}
-    </div></main><nav className="bottom" aria-label="Разделы приложения"><div>{[['today','Сегодня'],['plan','План'],...(historyEnabled ? [['history','История']] : [])].map(([id, label]) => <button key={id} aria-current={tab === id} onClick={() => {setTab(id); setActive(null); window.scrollTo(0, 0);}}>{label}</button>)}</div></nav>
-    {technique && <Technique exercise={technique} close={() => setTechnique(null)} />}
-  </>;
+  return <div className="app-layout"><Sidebar items={[[ 'today', 'Сегодня'], ['plan', 'План'], ['exercises', 'Упражнения'], ...(historyEnabled ? [['history', 'История']] : [])]} tab={tab} onSelect={id => {setTab(id); setCatalogSearch(''); setActive(null); window.scrollTo(0, 0);}} onSignOut={signOut} open={menuOpen} onClose={closeMenu} /><div className="app-content"><AppHeader status={status} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} /><main className={tab === 'exercises' ? 'catalog-main' : undefined}>{loaded && <ErrorNotice title="Проблема с синхронизацией" message={loadError} onAction={store.retry} />}<div id="screen">
+    {tab === 'exercises' ? <ExerciseLibrary initialQuery={catalogSearch} /> : !loaded ? <Panel>{loadError ? <ErrorNotice title="Журнал пока недоступен" message={loadError} onAction={store.retry} actionLabel="Попробовать снова" /> : <p className="boot">Загрузка журнала…</p>}</Panel> : tab === 'plan' ? <Plan sessions={sessions} open={open} /> : historyEnabled && tab === 'history' ? <History journal={journal} open={open} update={store.update} initialExpanded={expanded} /> : active ? <Workout key={active} journal={journal} sessionKey={active} update={store.update} finish={finish} showTechnique={setTechnique} /> : key ? (() => {const [w, d] = key.split('-').map(Number); return <Panel><p className="tag">{sessions[key] ? 'Начата' : 'Ближайшая тренировка'}</p><h2>{names[d]} · неделя {w}</h2><p>{workout(w, d, sessions[key]?.deferred).map(e => e.id === 'run' ? e.target : e.name).join(' → ')}</p><button className="primary" onClick={() => open(key)}>{sessions[key] ? 'Продолжить занятие' : 'Начать занятие'}</button></Panel>;})() : <Panel><h2>Цикл завершён</h2><button onClick={() => setTab(historyEnabled ? 'history' : 'plan')}>{historyEnabled ? 'Открыть историю' : 'Открыть план'}</button></Panel>}
+    </div></main></div>
+    {technique && <Technique exercise={technique} close={() => setTechnique(null)} browse={() => {setCatalogSearch(technique.query);setTechnique(null);setActive(null);setTab('exercises');}} />}
+  </div>;
 }

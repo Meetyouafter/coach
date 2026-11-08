@@ -1,16 +1,13 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {ErrorNotice} from './ErrorNotice.jsx';
-import {externalDemos, names, ready, workout} from '../../shared/program.js';
+import {ExerciseDialog} from '../exercises/ExerciseDialog.jsx';
+import {names, ready, workout} from '../../shared/program.js';
 import {dateLabel, describe, itemDone, lastRows, numeric, pace, parseTime, validNumber} from '../journal.js';
 
 export const statuses = ['Начата', 'Выполнена', 'Облегчена', 'Пропущена'];
 export function Panel({children, className = ''}) {return <section className={'panel ' + className}>{children}</section>;}
-export function Technique({exercise, close}) {
-  const ref = useRef(null);
-  useEffect(() => {const dialog = ref.current; dialog.showModal(); return () => dialog.close();}, []);
-  const slug = externalDemos[exercise.id];
-  return <dialog ref={ref} onCancel={close} aria-labelledby="tech-title"><h2 id="tech-title">{exercise.name}</h2>
-    <p>{exercise.tip}</p><p><a href={slug ? 'https://musclewiki.com/exercise/' + slug : 'https://www.youtube.com/results?search_query=' + encodeURIComponent(exercise.query + ' exercise form')} target="_blank" rel="noopener noreferrer">{slug ? 'Демонстрация · MuscleWiki' : 'Найти внешнюю демонстрацию'}</a></p><button onClick={close}>Закрыть</button></dialog>;
+export function Technique({exercise, close, browse}) {
+  return <ExerciseDialog exercise={exercise} onClose={close} onBrowse={browse} />;
 }
 export function RestTimer({until, setUntil}) {
   const [now, setNow] = useState(Date.now());
