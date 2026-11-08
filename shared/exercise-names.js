@@ -9,7 +9,8 @@ for(const [english,russian] of Object.entries(names)) {
 }
 
 export function exerciseName(name) {
-  return names[normalize(name)]??name;
+  const key=normalize(name);
+  return Object.hasOwn(names,key)?names[key]:name;
 }
 
 export function originalExerciseName(name) {

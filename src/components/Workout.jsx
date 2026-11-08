@@ -1,7 +1,8 @@
 import {useEffect, useState} from 'react';
 import {ErrorNotice} from './ErrorNotice.jsx';
 import {ExerciseDialog} from '../exercises/ExerciseDialog.jsx';
-import {names, ready, workout} from '../../shared/program.js';
+import {names, ready} from '../../shared/program.js';
+import {sessionWorkout} from '../../shared/plan.js';
 import {dateLabel, describe, itemDone, lastRows, numeric, pace, parseTime, validNumber} from '../journal.js';
 
 export const statuses = ['Начата', 'Выполнена', 'Облегчена', 'Пропущена'];
@@ -45,7 +46,7 @@ function LiftForm({journal, sessionKey, session, exercise: e, save, advance, set
     if (next === undefined) advance(nextSession);
     else {setSlot(next); setValues(nextSession.sets[e.id][next] ?? {kg: '', value: '', effort: ''}); setError('');}
   }
-  return <Panel><h2>{e.name}</h2><p>{e.n} × {e.reps} · старт {e.weight}</p><p className="muted">{e.rir ? 'RIR ' + e.rir + ' · повторы в запасе' : 'Дополнительное упражнение'}</p>
+  return <Panel><h2>{e.name}</h2><p>{e.n} × {e.reps} · старт {e.weight}</p><p className="muted">{e.rir ? 'Заканчивай подход, когда чувствуешь, что сможешь сделать ещё ' + (e.rir === '4+' ? 'минимум 4' : e.rir) + ' повторения с правильной техникой.' : 'Дополнительное упражнение'}</p>
     <button onClick={() => showTechnique(e)}>Техника</button>
     <div className="row slots">{Array.from({length}, (_, i) => <button key={i} aria-current={i === slot} onClick={() => select(i)}>{i + 1}{records[i]?.skip ? ' · пропуск' : records[i] ? ' ✓' : ''}</button>)}</div>
     <h3>Подход № {slot + 1}</h3>
@@ -81,14 +82,14 @@ function RunForm({session, exercise: e, week, day, save, advance}) {
       <Field label="Усилие 1–10" name="effort" mode="numeric" required value={effort} onChange={field('effort')} />
     </form>
     <p className="run">{numeric(km) > 0 && seconds > 0 ? 'Средний темп ' + pace(numeric(km), seconds) : ''}</p>
-    {week === 12 && day === 3 && <><p>{ready}</p><button onClick={() => save(s => {s.deferred = !s.deferred;})}>{session.deferred ? 'Вернуть тест' : 'Перенести тест'}</button></>}
+    {e.test && <>{!session.deferred && <p>{ready}</p>}<button onClick={() => save(s => {s.deferred = !s.deferred;})}>{session.deferred ? 'Вернуть тест' : 'Перенести тест'}</button></>}
     <ErrorNotice title="Бег не сохранён" message={error} />
   </Panel>;
 }
 export function Workout({journal, sessionKey, update, finish, showTechnique}) {
   const [week, day] = sessionKey.split('-').map(Number);
   const session = journal.trainingV2.sessions[sessionKey];
-  const list = workout(week, day, session.deferred);
+  const list = sessionWorkout(journal, week, day);
   const [index, setIndex] = useState(() => {const i = list.findIndex(e => !itemDone(session, e)); return i < 0 ? list.length : i;});
   const [until, setUntil] = useState(0);
   const save = change => {

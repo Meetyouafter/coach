@@ -23,16 +23,36 @@ const validIds=new Set('bench leg rdl row calf tib side press chestrow lateral c
 const allowed=(v,keys)=>object(v)&&Object.keys(v).every(k=>keys.includes(k));
 const iso=v=>typeof v==='string'&&v.length<=32&&Number.isFinite(Date.parse(v));
 const num=(v,min,max,int=false)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max&&(!int||Number.isInteger(v));
+const text=(v,max,required=false)=>typeof v==='string'&&v.length<=max&&(!required||v.trim().length>0);
+const sessionKey=v=>/^(?:[1-9]|1[0-2])-[0-3]$/.test(v);
+function validateWorkout(items) {
+ if(!Array.isArray(items)||items.length>23||new Set(items.map(item=>item?.id)).size!==items.length)throw Error();
+ for(const item of items){
+  if(item?.id==='run'){
+   if(!allowed(item,['id','target','tip','test'])||!text(item.target,500,true)||!text(item.tip,3000)||typeof item.test!=='boolean')throw Error();
+  }else if(!allowed(item,['id','n','reps','weight','rir','rest','tip'])||!validIds.has(item.id)||!num(item.n,1,20,true)||!text(item.reps,80,true)||!text(item.weight,120)||!text(item.rir,30)||!num(item.rest,0,1800,true)||!text(item.tip,3000))throw Error();
+ }
+}
+export function validatePlan(plan) {
+ if(!allowed(plan,['name','weeks'])||!text(plan.name,100,true)||!object(plan.weeks))throw Error();
+ for(const [week,value] of Object.entries(plan.weeks)){
+  if(!/^(?:[1-9]|1[0-2])$/.test(week)||!allowed(value,['note','kmMin','kmMax','days'])||!text(value.note,1000)||!num(value.kmMin,0,800)||!num(value.kmMax,value.kmMin,800)||!Array.isArray(value.days)||value.days.length!==4)throw Error();
+  value.days.forEach(validateWorkout);
+ }
+ return plan;
+}
 function validate(parsed){
  const {trainingV2,...legacy}=object(parsed?.journal)?parsed.journal:{};
  if(parsed?.version!==1||!object(parsed.journal))throw Error();
  validateLegacy({version:1,journal:legacy});
  if(trainingV2===undefined)return parsed.journal;
- if(!allowed(trainingV2,['sessions'])||!object(trainingV2.sessions))throw Error();
+ if(!allowed(trainingV2,['sessions','plan'])||!object(trainingV2.sessions))throw Error();
+ if(trainingV2.plan!==undefined)validatePlan(trainingV2.plan);
  for(const [key,s] of Object.entries(trainingV2.sessions)){
-  if(!/^(?:[1-9]|1[0-2])-[0-3]$/.test(key)||!allowed(s,['status','date','sets','run','deferred','finished'])||
+  if(!sessionKey(key)||!allowed(s,['status','date','sets','run','deferred','finished','plan'])||
    !['Начата','Выполнена','Облегчена','Пропущена'].includes(s.status)||!iso(s.date)||!object(s.sets)||
    (s.finished!=null&&!iso(s.finished))||(s.deferred!==undefined&&typeof s.deferred!=='boolean'))throw Error();
+  if(s.plan!==undefined)validateWorkout(s.plan);
   for(const [id,sets] of Object.entries(s.sets)){
    if(!validIds.has(id)||!object(sets))throw Error();
    for(const [i,r] of Object.entries(sets)){

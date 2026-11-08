@@ -1,8 +1,8 @@
 import {useEffect, useRef} from 'react';
 import {NavLink, useLocation} from 'react-router-dom';
-import {CalendarDays, Dumbbell, History, House, LogOut, X} from 'lucide-react';
+import {CalendarDays, Dumbbell, History, House, LogOut, TrendingUp, X} from 'lucide-react';
 
-const icons = {today: House, plan: CalendarDays, exercises: Dumbbell, history: History};
+const icons = {today: House, plan: CalendarDays, exercises: Dumbbell, history: History, progress: TrendingUp};
 
 export function Sidebar({items, onSignOut, open, onClose}) {
   const location = useLocation();
