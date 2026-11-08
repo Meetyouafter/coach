@@ -1,4 +1,4 @@
-# Зал и бег
+# Личный журнал тренировок
 
 Личный журнал тренировок: **React + Vite → Vercel Functions → PostgreSQL в Neon**. Cloudflare, D1 и OpenAI Sites больше не нужны. Приложение рассчитано на одного владельца: один пароль открывает один журнал на всех устройствах.
 
@@ -63,6 +63,8 @@ npm test              # PostgreSQL/API, вход, конфликты, офлай
 - `server/database.js` — параметризованные PostgreSQL-запросы через Neon HTTP driver.
 - `db/0001_journal.sql` — схема PostgreSQL; повторное применение не удаляет записи.
 - `vercel.json` — параметры развёртывания.
+
+Переключатель темы использует [Radix UI Switch](https://www.radix-ui.com/primitives/docs/components/switch) (MIT). Иконки солнца, луны и гантели, включая favicon, — [Lucide](https://lucide.dev/) (ISC/MIT). Лицензионные уведомления доступны в `public/third-party-notices.txt` и включаются в сборку.
 
 Таблица `workout_journals` содержит `user_id`, `revision` и `journal` типа JSONB. Изменение и проверка ревизии выполняются одним SQL-запросом; конфликт возвращает `409`. Запись и вход проверяют Origin. Авторизация не зависит от заголовков OpenAI или клиентского идентификатора.
 

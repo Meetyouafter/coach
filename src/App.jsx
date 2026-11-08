@@ -4,6 +4,7 @@ import {validate} from '../shared/validate.js';
 import {dateLabel, describe, lastRows, pace} from './journal.js';
 import {createJournalStore} from './store.js';
 import {Panel, Technique, Workout} from './components/Workout.jsx';
+import {AppHeader} from './components/AppHeader.jsx';
 
 function nextKey(sessions) {
   const ongoing = Object.keys(sessions).filter(k => sessions[k].status === 'Начата').sort((a, b) => sessions[b].date.localeCompare(sessions[a].date));
@@ -84,7 +85,7 @@ export function App({onUnauthorized, onSignOut}) {
     setActive(key); setTab('today');
   }
   function finish() {setExpanded(active); setActive(null); setTab('history');}
-  return <><main><header><p className="tag">12 недель · набор мышечной массы</p><h1>Зал и бег</h1><p className="muted" role="status">{status}</p><button onClick={onSignOut}>Выйти</button></header><div id="screen">
+  return <><AppHeader status={status} onSignOut={onSignOut} /><main><div id="screen">
     {!loaded ? <p className="boot">Загрузка журнала…</p> : tab === 'plan' ? <Plan sessions={sessions} open={open} /> : tab === 'history' ? <History journal={journal} open={open} update={store.update} initialExpanded={expanded} /> : active ? <Workout key={active} journal={journal} sessionKey={active} update={store.update} finish={finish} showTechnique={setTechnique} /> : key ? (() => {const [w, d] = key.split('-').map(Number); return <Panel><p className="tag">{sessions[key] ? 'Начата' : 'Ближайшая тренировка'}</p><h2>{names[d]} · неделя {w}</h2><p>{workout(w, d, sessions[key]?.deferred).map(e => e.id === 'run' ? e.target : e.name).join(' → ')}</p><button className="primary" onClick={() => open(key)}>{sessions[key] ? 'Продолжить занятие' : 'Начать занятие'}</button></Panel>;})() : <Panel><h2>Цикл завершён</h2><button onClick={() => setTab('history')}>Открыть историю</button></Panel>}
     </div></main><nav className="bottom" aria-label="Разделы приложения"><div>{[['today','Сегодня'],['plan','План'],['history','История']].map(([id, label]) => <button key={id} aria-current={tab === id} onClick={() => {setTab(id); setActive(null); window.scrollTo(0, 0);}}>{label}</button>)}</div></nav>
     {technique && <Technique exercise={technique} close={() => setTechnique(null)} />}

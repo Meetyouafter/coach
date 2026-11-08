@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import {App} from './App.jsx';
+import {AppHeader} from './components/AppHeader.jsx';
 
 export function AuthGate() {
   const [state, setState] = useState('loading');
@@ -34,7 +35,7 @@ export function AuthGate() {
     } catch {setError('Не удалось выйти. Проверь соединение и повтори.');}
   }
   if (state === 'ready') return <><App onUnauthorized={() => setState('login')} onSignOut={logout} />{error && <p className="auth-error" role="alert">{error}</p>}</>;
-  return <main><header><p className="tag">Личный журнал тренировок</p><h1>Зал и бег</h1></header><section className="panel">
+  return <div className="auth-layout"><AppHeader /><main className="auth-main"><section className="panel auth-card">
     {state === 'loading' ? <p role="status">Подключение…</p> : state === 'error' ? <><p className="error" role="alert">{error}</p><button onClick={check}>Повторить</button></> : <form onSubmit={login}><h2>Вход в журнал</h2><p className="muted">Введи свой пароль, чтобы открыть тренировки и синхронизацию.</p><label>Пароль<input type="password" autoComplete="current-password" required maxLength={1024} value={password} onChange={e => setPassword(e.target.value)} /></label><p className="error" role="alert">{error}</p><button className="primary" disabled={busy}>{busy ? 'Вход…' : 'Войти'}</button></form>}
-  </section></main>;
+  </section></main></div>;
 }
