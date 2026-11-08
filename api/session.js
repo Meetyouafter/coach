@@ -2,6 +2,7 @@ import {authenticatedSession, issueSession, matchesLegacyOwner, sessionCookie} f
 import {databaseQuery} from '../server/database.js';
 import {createUserRepository, normalizeLogin} from '../server/users.js';
 import {apiErrors, body, HttpError, json, sameOrigin} from '../server/http.js';
+import {validateAccount} from '../shared/account-validation.js';
 
 export function createSessionHandler({env = process.env, repository} = {}) {
   return apiErrors(async (req, res) => {
@@ -19,10 +20,11 @@ export function createSessionHandler({env = process.env, repository} = {}) {
       return json(res, 200, {authenticated: false, user: null});
     }
     const payload = await body(req, 8192);
-    const login = normalizeLogin(payload?.login);
-    const password = payload?.password;
-    if (typeof password !== 'string' || password.length < 16 || password.length > 1024) throw new HttpError(400, 'Пароль должен содержать от 16 до 1024 символов.');
-    if (!['login', 'register'].includes(payload.action)) throw new HttpError(400, 'Выбери вход или регистрацию.');
+    if (!['login', 'register'].includes(payload?.action)) throw new HttpError(400, 'Выбери вход или регистрацию.');
+    const fieldErrors = validateAccount(payload, payload.action);
+    if (Object.keys(fieldErrors).length) throw new HttpError(400, Object.values(fieldErrors)[0], fieldErrors);
+    const login = normalizeLogin(payload.login);
+    const password = payload.password;
     const users = repository ?? createUserRepository(databaseQuery(env));
     const user = payload.action === 'register' ? await users.register(login, password, env) : await users.authenticate(login, password);
     if (matchesLegacyOwner(password, env)) await users.claimLegacyJournal(user.id);

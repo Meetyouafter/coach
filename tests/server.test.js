@@ -72,12 +72,12 @@ test('schema can be applied repeatedly and legacy records roundtrip', async t =>
   assert.deepEqual((await request()).body.journal, legacy);
 });
 async function register(handler, login, password = 'shared-personal-password-1234') {
-  return call(handler,{method:'POST',payload:{action:'register',login,password}});
+  return call(handler,{method:'POST',payload:{action:'register',login,password,confirmPassword:password}});
 }
 test('registration and login are separate; passwords are salted and sessions contain the user', async t => {
   const {sessionHandler: handler, db} = await setup(t);
   assert.equal((await call(handler,{cookie:''})).body.authenticated,false);
-  assert.equal((await register(handler,'alice','short')).status,400);
+  assert.equal((await register(handler,'alice','')).status,400);
   const signup=await register(handler,'Alice');
   assert.equal(signup.status,200); assert.equal(signup.body.user.login,'alice');
   const cookie=signup.headers['set-cookie'];
@@ -130,4 +130,22 @@ test('configuration and database failures return useful errors without leaking s
   const response = await call(handler);
   assert.equal(response.status, 503);
   assert.ok(!JSON.stringify(response.body).includes('secret-connection'));
+});
+
+
+test('registration requires at least 12 characters and matching confirmation', async t => {
+  const {sessionHandler,db}=await setup(t);
+  for (const password of ['', 'a', '12345678901']) {
+    const result=await register(sessionHandler,'short-password',password);
+    assert.equal(result.status,400);
+  }
+  for (const confirmPassword of [undefined,'different','']) {
+    const result=await call(sessionHandler,{method:'POST',payload:{action:'register',login:'short-password',password:'123456789012',confirmPassword}});
+    assert.equal(result.status,400);assert.ok(result.body.fieldErrors.confirmPassword);
+  }
+  assert.equal((await db.query('SELECT count(*)::integer AS count FROM app_users')).rows[0].count,0);
+  const signup=await register(sessionHandler,'short-password','123456789012');
+  assert.equal(signup.status,200);
+  const login=await call(sessionHandler,{method:'POST',payload:{action:'login',login:'short-password',password:'123456789012'}});
+  assert.equal(login.status,200);assert.equal(login.body.user.id,signup.body.user.id);
 });

@@ -1,12 +1,12 @@
 import {randomUUID} from 'node:crypto';
 import {hashPassword, passwordLookup, verifyPassword} from './auth.js';
 import {HttpError} from './http.js';
+import {loginError, normalizeLoginValue} from '../shared/account-validation.js';
 
 export function normalizeLogin(value) {
-  if (typeof value !== 'string') throw new HttpError(400, 'Введи логин.');
-  const login = value.trim().normalize('NFKC').toLowerCase();
-  if (!/^[\p{L}\p{N}_.-]{3,40}$/u.test(login)) throw new HttpError(400, 'Логин: 3–40 букв, цифр или символов _ . -');
-  return login;
+  const error = loginError(value);
+  if (error) throw new HttpError(400, error, {login:error});
+  return normalizeLoginValue(value);
 }
 export function createUserRepository(query) {
   return {
@@ -19,7 +19,7 @@ export function createUserRepository(query) {
     },
     async register(login, password, env) {
       const [exists] = await query('SELECT id FROM app_users WHERE login = $1', [login]);
-      if (exists) throw new HttpError(409, 'Этот логин уже занят.');
+      if (exists) throw new HttpError(409, 'Этот логин уже занят. Попробуй другой.', {login:'Этот логин уже занят. Попробуй другой.'});
       // A password-only account from the previous version can gain a login once.
       const [legacy] = await query('SELECT id, password_salt, password_hash FROM app_users WHERE password_lookup = $1 AND login IS NULL', [passwordLookup(password, env)]);
       if (legacy && await verifyPassword(password, legacy)) {
@@ -28,7 +28,7 @@ export function createUserRepository(query) {
       }
       const {salt, hash} = await hashPassword(password);
       const rows = await query('INSERT INTO app_users (id, login, password_lookup, password_salt, password_hash) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id, login', [randomUUID(), login, randomUUID(), salt, hash]);
-      if (!rows[0]) throw new HttpError(409, 'Этот логин уже занят.');
+      if (!rows[0]) throw new HttpError(409, 'Этот логин уже занят. Попробуй другой.', {login:'Этот логин уже занят. Попробуй другой.'});
       return rows[0];
     },
     async find(id) {

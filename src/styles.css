@@ -16,6 +16,8 @@
   --accent-soft: #d9eae4;
   --secondary: #315f85;
   --error: #a52e3d;
+  --error-surface: #fff0ef;
+  --error-line: #e3b7be;
   --focus: #315f85;
   --hover: #e1e9e2;
   --backdrop: #192f3170;
@@ -36,6 +38,8 @@
   --accent-soft: #30463f;
   --secondary: #a6cfea;
   --error: #ffb4bb;
+  --error-surface: #382730;
+  --error-line: #885662;
   --focus: #a6cfea;
   --hover: #333840;
   --backdrop: #090a12b8;
@@ -79,7 +83,7 @@ dialog::backdrop { background: var(--backdrop); }
 .boot { padding: 20px; text-align: center; }
 .workout-action { bottom: calc(60px + env(safe-area-inset-bottom)); border-top: 0; padding-bottom: 0; }
 .bottom.workout-action .action { margin-bottom: 0; }
-.auth-error { position: fixed; bottom: 80px; left: 14px; right: 14px; max-width: 710px; margin: auto; padding: 12px; color: var(--error); background: var(--panel); border: 1px solid var(--error); border-radius: 12px; z-index: 4; }
+.auth-error { position: fixed; bottom: 80px; left: 14px; right: 14px; max-width: 710px; margin: auto; z-index: 11; }
 /* Opaque fallback; browsers with backdrop filtering get the glass surface. */
 .app-header { position: sticky; top: 0; z-index: 10; background: var(--bg); border-bottom: 1px solid var(--panel-line); }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -91,7 +95,8 @@ dialog::backdrop { background: var(--backdrop); }
 .app-brand h1 { margin-bottom: 0; font-size: 26px; line-height: 1.2; text-wrap: balance; }
 .header-status { margin: 7px 0 0; font-size: 12px; overflow-wrap: anywhere; }
 .header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.sign-out { font-size: 12px; padding-inline: 10px; }
+.sign-out { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 44px; min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; flex-shrink: 0; }
+.sign-out svg { display: block; flex-shrink: 0; }
 /* Radix UI Switch (MIT), styled with the app's semantic colour tokens. */
 .theme-toggle { position: relative; display: block; width: 76px; height: 44px; min-height: 44px; padding: 0; background: var(--accent-soft); border: 1px solid var(--line); border-radius: 999px; color: var(--accent); flex-shrink: 0; box-shadow: inset 0 1px 3px #0000000d; }
 .theme-toggle[data-state="checked"] { background: var(--control); color: var(--secondary); }
@@ -125,7 +130,8 @@ dialog::backdrop { background: var(--backdrop); }
 .auth-card button { width: 100%; }
 .auth-card > button { margin: 18px 0 0; }
 .auth-card .error:empty { display: none; }
-@media (max-width: 380px) { .header-actions { flex-direction: column; gap: 5px; } .sign-out { min-height: 32px; padding-block: 4px; } .app-brand h1 { font-size: 20px; } .brand-heading { gap: 8px; } .brand-icon { width: 36px; height: 36px; border-radius: 11px; } }
+@media (max-width: 520px) { .sign-out { width: 44px; padding: 0; } .sign-out span { display: none; } }
+@media (max-width: 380px) { .app-brand h1 { font-size: 20px; } .brand-heading { gap: 8px; } .brand-icon { width: 36px; height: 36px; border-radius: 11px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
 .auth-note { font-size: 12px; line-height: 1.5; }
@@ -134,3 +140,21 @@ dialog::backdrop { background: var(--backdrop); }
 .auth-tabs { display: flex; gap: 8px; }
 .auth-tabs button { flex: 1; }
 .auth-tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--fg); font-weight: 700; }
+
+/* Errors use the same layout and contrast in both themes. */
+.error-notice { display: flex; align-items: flex-start; gap: 11px; margin-top: 14px; padding: 14px 15px; text-align: left; color: var(--error); background: var(--error-surface); border: 1px solid var(--error-line); border-left: 3px solid var(--error); border-radius: 13px; animation: notice-in 180ms ease-out; }
+.error-notice-icon { flex: 0 0 20px; margin-top: 1px; }
+.error-notice-content { min-width: 0; overflow-wrap: anywhere; }
+.error-notice-content strong { display: block; font-size: 13px; font-weight: 750; line-height: 1.45; }
+.error-notice-content p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; }
+.error-notice-action { margin-top: 11px; min-height: 38px; padding: 7px 12px; font-size: 12px; color: var(--error); background: var(--panel); border-color: var(--error); }
+.auth-card .error-notice { margin-top: 0; }
+.auth-card .error-notice-action { width: auto; }
+.form-field .form-field-label { color: var(--fg); font-size: 13px; font-weight: 600; }
+.form-field input { transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
+.form-field input[aria-invalid="true"] { border-color: var(--error); background: var(--error-surface); }
+.form-field input[aria-invalid="true"]:focus-visible { outline-color: var(--error); }
+.field-error { display: flex; align-items: flex-start; gap: 6px; color: var(--error); font-size: 12px; line-height: 1.5; animation: notice-in 160ms ease-out; }
+.field-error svg { flex-shrink: 0; margin-top: 2px; }
+.field-hint { color: var(--muted); font-size: 12px; line-height: 1.5; }
+@keyframes notice-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }

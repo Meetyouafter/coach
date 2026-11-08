@@ -1,5 +1,5 @@
 export class HttpError extends Error {
-  constructor(status, message) {super(message); this.status = status;}
+  constructor(status, message, fieldErrors) {super(message); this.status = status; this.fieldErrors = fieldErrors;}
 }
 
 export function json(res, status, value) {
@@ -42,6 +42,7 @@ export function apiErrors(handler) {
       // Database errors may contain connection details; never send them to the client.
       json(res, error instanceof HttpError ? error.status : 503, {
         error: error instanceof HttpError ? error.message : 'База данных временно недоступна. Повтори позже.',
+        ...(error instanceof HttpError && error.fieldErrors ? {fieldErrors:error.fieldErrors} : {}),
       });
     }
   };

@@ -76,6 +76,8 @@ for (const mode of ['light', 'dark']) {
     }
     assert.ok(contrast(tokens['on-accent'], tokens.accent) >= 4.5);
     assert.ok(contrast(tokens.fg, tokens['accent-soft']) >= 4.5);
+    assert.ok(contrast(tokens.error, tokens['error-surface']) >= 4.5, 'error text must remain readable');
+    assert.ok(contrast(tokens.fg, tokens['error-surface']) >= 4.5, 'invalid field input must remain readable');
     const [, r, g, b, percent] = block.match(/--header-glass:\s*rgb\((\d+) (\d+) (\d+) \/ (\d+)%\)/);
     const opacity = Number(percent) / 100;
     const behind = mode === 'light' ? 0 : 255;

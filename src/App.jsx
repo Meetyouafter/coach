@@ -5,6 +5,9 @@ import {dateLabel, describe, lastRows, pace} from './journal.js';
 import {createJournalStore} from './store.js';
 import {Panel, Technique, Workout} from './components/Workout.jsx';
 import {AppHeader} from './components/AppHeader.jsx';
+import {ErrorNotice} from './components/ErrorNotice.jsx';
+
+const historyEnabled = false;
 
 function nextKey(sessions) {
   const ongoing = Object.keys(sessions).filter(k => sessions[k].status === 'Начата').sort((a, b) => sessions[b].date.localeCompare(sessions[a].date));
@@ -63,7 +66,7 @@ function History({journal, open, update, initialExpanded}) {
     {Object.entries(sessions).sort((a, b) => b[1].date.localeCompare(a[1].date)).map(([key, s]) => {const [week, day] = key.split('-').map(Number); return <Panel key={key}><h3>{names[day]} · неделя {week}</h3><p>{dateLabel(s.date)} · {s.status}</p>{s.run && <p className="run">{s.run.km} км · {s.run.time} · {pace(s.run.km, s.run.sec)} · усилие {s.run.effort}/10{s.run.pulse ? ' · пульс ' + s.run.pulse : ''}</p>}
       {expanded === key && Object.entries(s.sets).flatMap(([id, records]) => Object.entries(records).map(([i, r]) => <p key={id + i}>{EX[id]?.[0] ?? id} · № {Number(i) + 1} · {r.skip ? 'пропущен' : describe(r)}</p>))}
       <button onClick={() => setExpanded(expanded === key ? '' : key)}>{expanded === key ? 'Свернуть' : 'Подходы'}</button><button onClick={() => open(key)}>Открыть занятие</button></Panel>;})}
-    <Legacy journal={journal} /><Panel><button onClick={download}>Экспорт JSON</button><button onClick={() => file.current.click()}>Импорт JSON</button><input ref={file} type="file" accept=".json,application/json" hidden onChange={upload} /><p role="alert" className="error">{error}</p></Panel>
+    <Legacy journal={journal} /><Panel><button onClick={download}>Экспорт JSON</button><button onClick={() => file.current.click()}>Импорт JSON</button><input ref={file} type="file" accept=".json,application/json" hidden onChange={upload} /><ErrorNotice title="Не удалось импортировать журнал" message={error} /></Panel>
   </>;
 }
 export function App({userId, onUnauthorized, onSignOut}) {
@@ -82,11 +85,11 @@ export function App({userId, onUnauthorized, onSignOut}) {
     if (!sessions[key]) store.update(j => {j.trainingV2.sessions[key] = {status: 'Начата', date: new Date().toISOString(), sets: {}};});
     setActive(key); setTab('today');
   }
-  function finish() {setExpanded(active); setActive(null); setTab('history');}
+  function finish() {setExpanded(active); setActive(null); setTab(historyEnabled ? 'history' : 'today');}
   async function signOut() {if (await store.flush()) await onSignOut();}
-  return <><AppHeader status={status} onSignOut={signOut} /><main><div id="screen">
-    {!loaded ? <Panel><p className="boot">{loadError || 'Загрузка журнала…'}</p>{loadError && <button onClick={store.retry}>Повторить</button>}</Panel> : tab === 'plan' ? <Plan sessions={sessions} open={open} /> : tab === 'history' ? <History journal={journal} open={open} update={store.update} initialExpanded={expanded} /> : active ? <Workout key={active} journal={journal} sessionKey={active} update={store.update} finish={finish} showTechnique={setTechnique} /> : key ? (() => {const [w, d] = key.split('-').map(Number); return <Panel><p className="tag">{sessions[key] ? 'Начата' : 'Ближайшая тренировка'}</p><h2>{names[d]} · неделя {w}</h2><p>{workout(w, d, sessions[key]?.deferred).map(e => e.id === 'run' ? e.target : e.name).join(' → ')}</p><button className="primary" onClick={() => open(key)}>{sessions[key] ? 'Продолжить занятие' : 'Начать занятие'}</button></Panel>;})() : <Panel><h2>Цикл завершён</h2><button onClick={() => setTab('history')}>Открыть историю</button></Panel>}
-    </div></main><nav className="bottom" aria-label="Разделы приложения"><div>{[['today','Сегодня'],['plan','План'],['history','История']].map(([id, label]) => <button key={id} aria-current={tab === id} onClick={() => {setTab(id); setActive(null); window.scrollTo(0, 0);}}>{label}</button>)}</div></nav>
+  return <><AppHeader status={status} onSignOut={signOut} /><main>{loaded && <ErrorNotice title="Проблема с синхронизацией" message={loadError} onAction={store.retry} />}<div id="screen">
+    {!loaded ? <Panel>{loadError ? <ErrorNotice title="Журнал пока недоступен" message={loadError} onAction={store.retry} actionLabel="Попробовать снова" /> : <p className="boot">Загрузка журнала…</p>}</Panel> : tab === 'plan' ? <Plan sessions={sessions} open={open} /> : historyEnabled && tab === 'history' ? <History journal={journal} open={open} update={store.update} initialExpanded={expanded} /> : active ? <Workout key={active} journal={journal} sessionKey={active} update={store.update} finish={finish} showTechnique={setTechnique} /> : key ? (() => {const [w, d] = key.split('-').map(Number); return <Panel><p className="tag">{sessions[key] ? 'Начата' : 'Ближайшая тренировка'}</p><h2>{names[d]} · неделя {w}</h2><p>{workout(w, d, sessions[key]?.deferred).map(e => e.id === 'run' ? e.target : e.name).join(' → ')}</p><button className="primary" onClick={() => open(key)}>{sessions[key] ? 'Продолжить занятие' : 'Начать занятие'}</button></Panel>;})() : <Panel><h2>Цикл завершён</h2><button onClick={() => setTab(historyEnabled ? 'history' : 'plan')}>{historyEnabled ? 'Открыть историю' : 'Открыть план'}</button></Panel>}
+    </div></main><nav className="bottom" aria-label="Разделы приложения"><div>{[['today','Сегодня'],['plan','План'],...(historyEnabled ? [['history','История']] : [])].map(([id, label]) => <button key={id} aria-current={tab === id} onClick={() => {setTab(id); setActive(null); window.scrollTo(0, 0);}}>{label}</button>)}</div></nav>
     {technique && <Technique exercise={technique} close={() => setTechnique(null)} />}
   </>;
 }
