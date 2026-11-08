@@ -78,3 +78,5 @@ function workout(w,d,deferred=false) {
   return [...(d===1&&w>=3?[run,...lifts]:[...lifts,run]),core];
 }
 const externalDemos={bench:'barbell-bench-press',leg:'machine-leg-press',rdl:'dumbbell-romanian-deadlift',press:'dumbbell-seated-overhead-press',lateral:'dumbbell-lateral-raise',curl:'dumbbell-curl',bridge:'machine-hip-thrust',incline:'dumbbell-incline-bench-press',pallof:'cable-pallof-press'};
+
+export { W, phases, names, EX, ready, workout, externalDemos };

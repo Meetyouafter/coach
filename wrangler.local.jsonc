@@ -1,0 +1,12 @@
+{
+  "name": "zal-beg-local",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-11-01",
+  "vars": { "LOCAL_DEV": "true" },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "zal-beg-local",
+    "database_id": "00000000-0000-0000-0000-000000000001",
+    "migrations_dir": "drizzle"
+  }]
+}

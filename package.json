@@ -1,1 +1,24 @@
-{"type":"module","private":true}
+{
+  "name": "zal-beg",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/dev.mjs",
+    "build": "vite build",
+    "vercel-build": "npm run db:migrate && npm run build",
+    "db:migrate": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/migrate.mjs",
+    "test": "node --test --test-isolation=none"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@neondatabase/serverless": "^1.0.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0",
+    "@electric-sql/pglite": "^0.3.0"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}
