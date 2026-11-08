@@ -1,3 +1,13 @@
+ExerciseDB V1 / AscendAPI
+https://ascendapi.com
+https://oss.exercisedb.dev/docs
+
+Exercise metadata and 180p GIF demonstrations are served by AscendAPI.
+Free API use is limited to personal and non-commercial projects, requires
+attribution, and is subject to provider rate limits. Commercial use requires
+an appropriate paid plan. Consult the provider documentation for current terms.
+
+
 Radix UI Switch
 https://github.com/radix-ui/primitives
 

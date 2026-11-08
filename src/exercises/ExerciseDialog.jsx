@@ -10,8 +10,9 @@ export function SourceCredit() {
 }
 export function ExerciseDialog({exercise,onClose,onBrowse}) {
   const dialog=useRef(null);
-  const [remote,setRemote]=useState(exercise.gifUrl?exercise:null);
-  const [loading,setLoading]=useState(!exercise.gifUrl);
+  const catalogItem=Array.isArray(exercise.bodyParts);
+  const [remote,setRemote]=useState(catalogItem?exercise:null);
+  const [loading,setLoading]=useState(!catalogItem);
   const [error,setError]=useState('');
   const [attempt,setAttempt]=useState(0);
   useEffect(()=>{
@@ -19,14 +20,14 @@ export function ExerciseDialog({exercise,onClose,onBrowse}) {
     return()=>element.close();
   },[]);
   useEffect(()=>{
-    if(exercise.gifUrl)return;
+    if(catalogItem)return;
     const controller=new AbortController();setLoading(true);setError('');
     loadExercises({query:programQuery(exercise.id,exercise.query)},controller.signal)
       .then(data=>{if(!controller.signal.aborted)setRemote(matchProgramExercise(exercise.id,data.items));})
       .catch(e=>{if(!controller.signal.aborted)setError(e.message);})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return()=>controller.abort();
-  },[exercise,attempt]);
+  },[exercise,catalogItem,attempt]);
   return <dialog ref={dialog} className="exercise-dialog" aria-labelledby="exercise-dialog-title" onCancel={event=>{event.preventDefault();onClose();}} onClick={event=>{
     if(event.target!==event.currentTarget)return;
     const rect=event.currentTarget.getBoundingClientRect();

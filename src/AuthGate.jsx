@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
+import {Navigate, useLocation, useNavigate} from 'react-router-dom';
 import {App} from './App.jsx';
 import {AppHeader} from './components/AppHeader.jsx';
 import {AuthField} from './components/AuthField.jsx';
@@ -16,16 +17,25 @@ async function sessionRequest(init) {
   return {response,result};
 }
 export function AuthGate() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const generation = useRef(0);
   const form = useRef(null);
   const [state, setState] = useState('loading');
   const [user, setUser] = useState(null);
-  const [action, setAction] = useState('login');
+  const action = location.pathname === '/register' ? 'register' : 'login';
+  const isAuthPage = ['/login', '/register'].includes(location.pathname);
+  const returnTo = location.state?.from;
+  const destination = typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//') && !['/login', '/register'].includes(returnTo.split('?')[0]) ? returnTo : '/today';
   const [values, setValues] = useState({login:'',password:'',confirmPassword:''});
   const [touched, setTouched] = useState({});
   const [serverErrors, setServerErrors] = useState({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setValues(old => ({...old, confirmPassword: ''}));
+    setTouched({}); setServerErrors({});
+  }, [action]);
   const issues = validateAccount(values,action);
   const fieldErrors = {...Object.fromEntries(Object.entries(issues).filter(([name]) => touched[name])),...serverErrors};
   function broadcast() {
@@ -60,7 +70,7 @@ export function AuthGate() {
     setValues(old=>({...old,[name]:value})); setServerErrors({}); setError('');
   }
   function selectAction(next) {
-    setAction(next); setValues(old=>({...old,confirmPassword:''})); setTouched({}); setServerErrors({}); setError('');
+    navigate('/' + next, {state: location.state}); setValues(old=>({...old,confirmPassword:''})); setTouched({}); setServerErrors({}); setError('');
   }
   function focusFirst(errors) {
     const name = ['login','password','confirmPassword'].find(name=>errors[name]);
@@ -88,11 +98,15 @@ export function AuthGate() {
     try {
       const response = await fetch('/api/session',{method:'DELETE'});
       if (!response.ok) throw Error();
-      setError(''); setUser(null); setState('login'); broadcast();
+      setError(''); setUser(null); setState('login'); broadcast(); navigate('/login', {replace: true});
     } catch {setError('Проверь соединение и попробуй выйти ещё раз.');}
   }
   const fieldProps = name => ({name,value:values[name],error:fieldErrors[name],onChange:event=>edit(name,event.target.value),onBlur:()=>setTouched(old=>({...old,[name]:true})),disabled:busy});
-  if (state === 'ready') return <><App key={user.id} userId={user.id} onUnauthorized={requireLogin} onSignOut={logout} />{error && <div className="auth-error"><ErrorNotice title="Не удалось выйти" message={error} onAction={logout} /></div>}</>;
+  if (state === 'ready') {
+    if (isAuthPage) return <Navigate to={destination} replace />;
+    return <><App key={user.id} userId={user.id} onUnauthorized={requireLogin} onSignOut={logout} />{error && <div className="auth-error"><ErrorNotice title="Не удалось выйти" message={error} onAction={logout} /></div>}</>;
+  }
+  if (state === 'login' && !isAuthPage) return <Navigate to="/login" replace state={{from: location.pathname + location.search + location.hash}} />;
   return <div className="auth-layout"><AppHeader /><main className="auth-main"><section className="panel auth-card">
     {state === 'loading' ? <p role="status">Подключение…</p> : state === 'error' ? <ErrorNotice title="Не удалось подключиться" message={error} onAction={check} actionLabel="Попробовать снова" /> : <>
       <h2>{action==='register'?'Создать аккаунт':'Вход в аккаунт'}</h2>

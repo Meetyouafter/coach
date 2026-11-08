@@ -4,6 +4,9 @@
   "installCommand": "npm ci --include=dev",
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/((?!api(?:/|$)|assets(?:/|$)).*)", "destination": "/index.html" }
+  ],
   "functions": {
     "api/*.js": { "maxDuration": 30 }
   }

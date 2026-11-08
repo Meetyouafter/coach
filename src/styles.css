@@ -100,8 +100,10 @@ dialog::backdrop { background: var(--backdrop); }
 .sidebar-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; margin-bottom: 24px; font-size: 18px; font-weight: 750; }
 .sidebar-heading button { display: grid; place-items: center; width: 44px; padding: 0; }
 .sidebar-nav { display: grid; gap: 8px; }
-.sidebar-nav button, .sign-out { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 12px; text-align: left; font-size: 14px; }
-.sidebar-nav button:not([aria-current="true"]) { background: transparent; border-color: transparent; }
+.sidebar-nav a, .sign-out { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 12px; text-align: left; font-size: 14px; }
+.sidebar-nav a { border: 1px solid transparent; border-radius: 11px; color: var(--fg); text-decoration: none; }
+.sidebar-nav a.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 750; }
+@media (hover: hover) { .sidebar-nav a:hover { background: var(--hover); } .sidebar-nav a.active:hover { background: var(--accent); filter: brightness(.94); } }
 .sidebar-footer { margin-top: auto; padding-top: 24px; }
 .sign-out { font-weight: 600; }
 .sign-out svg { display: block; flex-shrink: 0; }

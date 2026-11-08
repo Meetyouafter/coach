@@ -1,9 +1,11 @@
 import {useEffect, useRef} from 'react';
+import {NavLink, useLocation} from 'react-router-dom';
 import {CalendarDays, Dumbbell, History, House, LogOut, X} from 'lucide-react';
 
 const icons = {today: House, plan: CalendarDays, exercises: Dumbbell, history: History};
 
-export function Sidebar({items, tab, onSelect, onSignOut, open, onClose}) {
+export function Sidebar({items, onSignOut, open, onClose}) {
+  const location = useLocation();
   const dialog = useRef(null);
   useEffect(() => {
     if (open) dialog.current.showModal();
@@ -15,13 +17,12 @@ export function Sidebar({items, tab, onSelect, onSignOut, open, onClose}) {
     desktop.addEventListener('change', closeOnDesktop);
     return () => desktop.removeEventListener('change', closeOnDesktop);
   }, [onClose]);
-  function select(id) {onSelect(id); onClose();}
   function content(mobile = false) {
     return <>
       <div className="sidebar-heading"><span>Мой журнал</span>{mobile && <button type="button" onClick={onClose} aria-label="Закрыть меню"><X size={20} aria-hidden="true" /></button>}</div>
-      <nav className="sidebar-nav" aria-label="Разделы приложения">{items.map(([id, label]) => {
+      <nav className="sidebar-nav" aria-label="Разделы приложения">{items.map(([id, label, path]) => {
         const Icon = icons[id];
-        return <button type="button" key={id} aria-current={tab === id} onClick={() => select(id)}><Icon size={20} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span></button>;
+        return <NavLink key={id} to={path} className={({isActive}) => isActive || (id === 'today' && location.pathname.startsWith('/workouts/')) ? 'active' : undefined} onClick={onClose}><Icon size={20} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span></NavLink>;
       })}</nav>
       <div className="sidebar-footer"><button className="sign-out" type="button" onClick={() => {onClose(); void onSignOut();}}><LogOut size={20} strokeWidth={1.8} aria-hidden="true" /><span>Выйти из аккаунта</span></button></div>
     </>;
