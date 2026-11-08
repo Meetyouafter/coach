@@ -1,3 +1,5 @@
+import {originalExerciseName} from './exercise-names.js';
+
 export const categories = [
   {id:'chest',label:'Грудь',description:'Жимы и разведения',bodyPart:'chest'},
   {id:'back',label:'Спина',description:'Тяги и подтягивания',bodyPart:'back'},
@@ -40,7 +42,7 @@ const aliases = {
 };
 export function searchTerm(value) {
   const key=value.trim().toLowerCase().replace(/\s+/g,' ');
-  return aliases[key]??value.trim();
+  return aliases[key]??originalExerciseName(value)??value.trim();
 }
 export const bodyPartLabel = part => categories.find(item=>item.bodyPart===part)?.label??part;
 export function safeGifUrl(value) {

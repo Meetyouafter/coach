@@ -4,6 +4,7 @@ import {ErrorNotice} from '../components/ErrorNotice.jsx';
 import {GifPreview} from './GifPreview.jsx';
 import {loadExercises} from './api.js';
 import {bodyPartLabel,equipmentLabels,muscleLabels,matchProgramExercise,programQuery} from '../../shared/exercise-catalog.js';
+import {exerciseName} from '../../shared/exercise-names.js';
 
 export function SourceCredit() {
   return <p className="exercise-source">Демонстрации и данные: <a href="https://oss.exercisedb.dev/" target="_blank" rel="noopener noreferrer">ExerciseDB · AscendAPI<ExternalLink size={11} aria-hidden="true" /></a></p>;
@@ -33,14 +34,14 @@ export function ExerciseDialog({exercise,onClose,onBrowse}) {
     const rect=event.currentTarget.getBoundingClientRect();
     if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)onClose();
   }}>
-    <div className="exercise-dialog-heading"><div><p className="tag">Техника упражнения</p><h2 id="exercise-dialog-title">{exercise.name}</h2></div><button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть упражнение"><X size={21} aria-hidden="true" /></button></div>
+    <div className="exercise-dialog-heading"><div><p className="tag">Техника упражнения</p><h2 id="exercise-dialog-title">{exerciseName(exercise.name)}</h2></div><button type="button" className="icon-button" onClick={onClose} aria-label="Закрыть упражнение"><X size={21} aria-hidden="true" /></button></div>
     {exercise.tip&&<p className="exercise-tip">{exercise.tip}</p>}
     {loading?<div className="exercise-media-loading" role="status">Загружаем демонстрацию…</div>:error?<ErrorNotice title="Не удалось загрузить демонстрацию" message={error} onAction={()=>setAttempt(value=>value+1)} />:remote?<>
-      <div className="exercise-detail-grid"><div><GifPreview src={remote.gifUrl} name={exercise.name} large /><SourceCredit /></div><div className="exercise-details">
+      <div className="exercise-detail-grid"><div><GifPreview src={remote.gifUrl} name={exerciseName(exercise.name)} large /><SourceCredit /></div><div className="exercise-details">
         <div className="exercise-tags">{remote.bodyParts.map(part=><span key={part}>{bodyPartLabel(part)}</span>)}{remote.equipment.map(value=><span key={value}>{equipmentLabels[value]??value}</span>)}</div>
         {remote.muscles.length>0&&<div><h3>Основные мышцы</h3><p>{remote.muscles.map(value=>muscleLabels[value]??value).join(', ')}</p></div>}
         {remote.secondaryMuscles.length>0&&<div><h3>Дополнительно</h3><p className="muted">{remote.secondaryMuscles.map(value=>muscleLabels[value]??value).join(', ')}</p></div>}
-        {exercise.tip&&<p className="muted exercise-original-name">В каталоге: {remote.name}</p>}
+        {exercise.tip&&<p className="muted exercise-original-name">В каталоге: {exerciseName(remote.name)}</p>}
       </div></div>
       {!exercise.tip&&remote.instructions.length>0&&<div className="exercise-instructions"><h3>Как выполнять <span className="muted">· инструкция источника на английском</span></h3><ol>{remote.instructions.map((line,index)=><li key={index}>{line}</li>)}</ol></div>}
     </>:<div className="exercise-no-match"><p>Для этого варианта пока не нашли подходящую GIF-демонстрацию.</p>{onBrowse&&<button type="button" onClick={onBrowse}>Найти в каталоге</button>}</div>}

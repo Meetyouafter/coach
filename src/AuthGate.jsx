@@ -4,6 +4,7 @@ import {App} from './App.jsx';
 import {AppHeader} from './components/AppHeader.jsx';
 import {AuthField} from './components/AuthField.jsx';
 import {ErrorNotice} from './components/ErrorNotice.jsx';
+import {ConnectionLoader} from './components/ConnectionLoader.jsx';
 import {validateAccount} from '../shared/account-validation.js';
 
 const accountKey = 'coach-active-user';
@@ -107,8 +108,8 @@ export function AuthGate() {
     return <><App key={user.id} userId={user.id} onUnauthorized={requireLogin} onSignOut={logout} />{error && <div className="auth-error"><ErrorNotice title="Не удалось выйти" message={error} onAction={logout} /></div>}</>;
   }
   if (state === 'login' && !isAuthPage) return <Navigate to="/login" replace state={{from: location.pathname + location.search + location.hash}} />;
-  return <div className="auth-layout"><AppHeader /><main className="auth-main"><section className="panel auth-card">
-    {state === 'loading' ? <p role="status">Подключение…</p> : state === 'error' ? <ErrorNotice title="Не удалось подключиться" message={error} onAction={check} actionLabel="Попробовать снова" /> : <>
+  return <div className="auth-layout"><AppHeader /><main className="auth-main"><section className={state === 'loading' ? 'auth-card connection-loader-shell' : 'panel auth-card'}>
+    {state === 'loading' ? <ConnectionLoader /> : state === 'error' ? <ErrorNotice title="Не удалось подключиться" message={error} onAction={check} actionLabel="Попробовать снова" /> : <>
       <h2>{action==='register'?'Создать аккаунт':'Вход в аккаунт'}</h2>
       <p className="muted">Тренировки сохраняются в твоём аккаунте и доступны на любом устройстве.</p>
       <div className="auth-tabs" role="group" aria-label="Вход или регистрация"><button type="button" disabled={busy} aria-pressed={action==='login'} onClick={()=>selectAction('login')}>Войти</button><button type="button" disabled={busy} aria-pressed={action==='register'} onClick={()=>selectAction('register')}>Регистрация</button></div>

@@ -5,6 +5,7 @@ import {createJournalStore} from './store.js';
 import {Panel, Technique, Workout} from './components/Workout.jsx';
 import {AppHeader} from './components/AppHeader.jsx';
 import {ErrorNotice} from './components/ErrorNotice.jsx';
+import {ConnectionLoader} from './components/ConnectionLoader.jsx';
 import {Sidebar} from './components/Sidebar.jsx';
 import {ExerciseLibrary} from './exercises/ExerciseLibrary.jsx';
 import {Plan} from './pages/Plan.jsx';
@@ -51,7 +52,7 @@ export function App({userId, onUnauthorized, onSignOut}) {
     navigate('/workouts/' + key);
   }
   async function signOut() {if (await store.flush()) await onSignOut();}
-  const loading = <Panel>{loadError ? <ErrorNotice title="Журнал пока недоступен" message={loadError} onAction={store.retry} actionLabel="Попробовать снова" /> : <p className="boot">Загрузка журнала…</p>}</Panel>;
+  const loading = loadError ? <Panel><ErrorNotice title="Журнал пока недоступен" message={loadError} onAction={store.retry} actionLabel="Попробовать снова" /></Panel> : <div className="connection-loader-shell"><ConnectionLoader label="Загрузка журнала…" /></div>;
   return <div className="app-layout">
     <Sidebar items={sections} onSignOut={signOut} open={menuOpen} onClose={closeMenu} />
     <div className="app-content">
