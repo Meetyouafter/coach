@@ -1,8 +1,8 @@
 import {useCallback, useEffect, useState, useSyncExternalStore} from 'react';
 import {Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams} from 'react-router-dom';
-import {names} from '../shared/program.js';
-import {plannedWorkout, serializeWorkout, sessionWorkout} from '../shared/plan.js';
+import {plannedWorkout, serializeWorkout, sessionWorkout, sessionDay, sessionName, currentPlan} from '../shared/plan.js';
 import {createJournalStore} from './store.js';
+import {localDateKey} from './journal.js';
 import {Panel, Technique, Workout} from './components/Workout.jsx';
 import {AppHeader} from './components/AppHeader.jsx';
 import {ErrorNotice} from './components/ErrorNotice.jsx';
@@ -17,9 +17,7 @@ const sections = [['today', 'Сегодня', '/today'], ['plan', 'План', '/
 
 function WorkoutPage({journal, open, update, finish, showTechnique}) {
   const {sessionKey} = useParams();
-  const [week, day] = sessionKey.split('-').map(Number);
-  if (!/^(?:[1-9]|1[0-2])-[0-3]$/.test(sessionKey)) return <NotFound />;
-  if (!journal.trainingV2?.sessions?.[sessionKey]) return <Panel><h2>{names[day]} · неделя {week}</h2>{plannedWorkout(journal.trainingV2?.plan, week, day).length ? <button className="primary" onClick={() => open(sessionKey)}>Начать занятие</button> : <><p>День отдыха — тренировка не запланирована.</p><Link to={'/plan?week=' + week}>Изменить план</Link></>}</Panel>;
+  if (!journal.trainingV2?.sessions?.[sessionKey]) return <NotFound />;
   return <Workout key={sessionKey} journal={journal} sessionKey={sessionKey} update={update} finish={finish} showTechnique={showTechnique} />;
 }
 
@@ -49,19 +47,43 @@ export function App({userId, onUnauthorized, onSignOut}) {
   }, [location.pathname, location.search, closeMenu]);
   const sessions = journal.trainingV2?.sessions ?? {};
   const isCatalog = location.pathname === '/exercises';
-  function open(key) {
-    const [week, day] = key.split('-').map(Number);
-    const items = plannedWorkout(journal.trainingV2?.plan, week, day);
-    if (!sessions[key] && !items.length) return;
-    if (!sessions[key]) store.update(j => {j.trainingV2.sessions[key] = {status: 'Начата', date: new Date().toISOString(), sets: {}, plan: serializeWorkout(items)};});
+  const isPlan = location.pathname === '/plan';
+  function open(dayOrKey, {todayOnly = false} = {}) {
+    const currentJournal = store.getSnapshot().journal;
+    const currentSessions = currentJournal.trainingV2?.sessions ?? {};
+    if (typeof dayOrKey === 'string' && currentSessions[dayOrKey]) {navigate('/workouts/' + dayOrKey); return;}
+    const day = dayOrKey;
+    const schedule = currentPlan(currentJournal.trainingV2?.plan);
+    if (!Number.isInteger(day) || day < 0 || !schedule.dayNames[day]) return;
+    const ongoing = Object.entries(currentSessions).filter(([key, session]) => sessionDay(key, session) === day && session.status === 'Начата' && (!todayOnly || localDateKey(session.date) === localDateKey())).sort((a, b) => b[1].date.localeCompare(a[1].date));
+    if (ongoing.length) {navigate('/workouts/' + ongoing[0][0]); return;}
+    const items = plannedWorkout(currentJournal.trainingV2?.plan, day);
+    if (!items.length) return;
+    const key = crypto.randomUUID();
+    store.update(j => {
+      j.trainingV2.sessions[key] = {day, name: schedule.dayNames[day], status: 'Начата', date: new Date().toISOString(), sets: {}, plan: serializeWorkout(items)};
+      setDayChoice(j, day);
+    });
     navigate('/workouts/' + key);
+  }
+  function setDayChoice(journal, day) {
+    const today = localDateKey();
+    journal.trainingV2.dayChoices ??= {};
+    journal.trainingV2.dayChoices[today] = day;
+    const dates = Object.keys(journal.trainingV2.dayChoices).sort();
+    for (const date of dates.slice(0, Math.max(0, dates.length - 365))) delete journal.trainingV2.dayChoices[date];
+  }
+  function chooseToday(day) {
+    const schedule = currentPlan(store.getSnapshot().journal.trainingV2?.plan);
+    if (!Number.isInteger(day) || !schedule.dayNames[day] || !schedule.days[day]?.length) throw Error('Это занятие больше недоступно. Выбери другое.');
+    store.update(j => setDayChoice(j, day));
   }
   async function savePlan(plan) {
     store.update(j => {
       for (const [key, session] of Object.entries(j.trainingV2.sessions)) {
+        session.name ??= sessionName(key, session);
         if (!session.plan) {
-          const [week, day] = key.split('-').map(Number);
-          session.plan = serializeWorkout(sessionWorkout(j, week, day));
+          session.plan = serializeWorkout(sessionWorkout(j, key));
         }
       }
       j.trainingV2.plan = plan;
@@ -75,11 +97,11 @@ export function App({userId, onUnauthorized, onSignOut}) {
     <Sidebar items={sections} onSignOut={signOut} open={menuOpen} onClose={closeMenu} />
     <div className="app-content">
       <AppHeader status={status} onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} />
-      <main className={isCatalog ? 'catalog-main' : undefined}>
+      <main className={isCatalog ? 'catalog-main' : isPlan ? 'plan-main' : undefined}>
         {loaded && <ErrorNotice title="Проблема с синхронизацией" message={loadError} onAction={store.retry} />}
         <div id="screen"><Routes>
           <Route path="/" element={<Navigate to="/today" replace />} />
-          <Route path="/today" element={loaded ? <Today journal={journal} sessions={sessions} open={open} /> : loading} />
+          <Route path="/today" element={loaded ? <Today journal={journal} sessions={sessions} open={value => open(value, {todayOnly:true})} onChoose={chooseToday} /> : loading} />
           <Route path="/plan" element={loaded ? <Plan sessions={sessions} open={open} plan={journal.trainingV2?.plan} onSave={savePlan} /> : loading} />
           <Route path="/progress" element={loaded ? <Progress sessions={sessions} plan={journal.trainingV2?.plan} /> : loading} />
           <Route path="/exercises" element={<ExercisesPage />} />

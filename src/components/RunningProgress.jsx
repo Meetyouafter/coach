@@ -1,14 +1,13 @@
 import {useId, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {ArrowUpRight, ChevronLeft, ChevronRight} from 'lucide-react';
-import {W, names} from '../../shared/program.js';
-import {plannedWorkout, weekPlan} from '../../shared/plan.js';
+import {currentPlan, sessionName} from '../../shared/plan.js';
 import {dateLabel, pace} from '../journal.js';
 import {Panel} from './Workout.jsx';
 
 const format = value => value.toLocaleString('ru-RU', {maximumFractionDigits: 1});
 const minutes = seconds => `${Math.floor(Math.round(seconds) / 60)}:${String(Math.round(seconds) % 60).padStart(2, '0')}`;
-const periods = [['day', 'День'], ['week', 'Неделя'], ['month', 'Месяц'], ['plan', 'План']];
+const periods = [['day', 'День'], ['week', 'Неделя'], ['month', 'Месяц']];
 const dateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 const shortDate = date => date.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'});
 function periodStart(value, period) {
@@ -32,17 +31,9 @@ export function RunningProgress({sessions, plan}) {
   const [period, setPeriod] = useState('week');
   const [page, setPage] = useState(0);
   const [selection, setSelection] = useState(null);
-  const weeks = W.map((_, index) => {
-    const week = index + 1;
-    const runs = Object.entries(sessions).filter(([key, session]) => Number(key.split('-')[0]) === week && session.run).sort((a, b) => a[1].date.localeCompare(b[1].date));
-    const km = runs.reduce((sum, [, session]) => sum + session.run.km, 0);
-    const sec = runs.reduce((sum, [, session]) => sum + session.run.sec, 0);
-    const customWeek = weekPlan(plan, week);
-    const range = [customWeek.kmMin, customWeek.kmMax];
-    return {week, runs, km, sec, pace: km ? sec / km : null, minutes: runs.length ? sec / 60 : null, planned: [range[0], range[1] ?? range[0]]};
-  });
-  // The running panel follows the actual plan rather than the presence of saved runs.
-  const hasRunning = Object.values(sessions).some(session => session.run) || W.some((_, index) => names.some((_, day) => plannedWorkout(plan, index + 1, day).some(exercise => exercise.id === 'run')));
+  const schedule = currentPlan(plan);
+  const hasPlannedRunning = schedule.days.some(items => items.some(exercise => exercise.id === 'run'));
+  const hasRunning = Object.values(sessions).some(session => session.run) || hasPlannedRunning;
   if (!hasRunning) return <Panel><h3>Бег не запланирован</h3><p className="muted">Добавь пробежки в план — здесь появятся беговые графики.</p><Link to="/plan?tab=run">Добавить бег в план →</Link></Panel>;
   const allRuns = Object.entries(sessions).filter(([, session]) => session.run).sort((a, b) => a[1].date.localeCompare(b[1].date));
   const count = period === 'day' ? 14 : 12;
@@ -64,15 +55,15 @@ export function RunningProgress({sessions, plan}) {
     const tick = period === 'month' ? from.toLocaleDateString('ru-RU', {month: 'short'}) : from.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit'});
     return {id: dateKey(from), label, tick, runs, km, sec, pace: km ? sec / km : null, minutes: runs.length ? sec / 60 : null};
   });
-  const buckets = period === 'plan' ? weeks.map(week => ({...week, id: String(week.week), label: `Неделя ${week.week}`, tick: week.week})) : calendar;
+  const buckets = calendar;
   const defaultIndex = buckets.findLastIndex(bucket => bucket.runs.length);
   const selectedIndex = buckets.findIndex(bucket => bucket.id === selection);
   const activeIndex = selectedIndex >= 0 ? selectedIndex : defaultIndex >= 0 ? defaultIndex : buckets.length - 1;
   const active = buckets[activeIndex];
-  const showPlan = period === 'plan' && metric === 'km';
+  const showPlan = period === 'week' && metric === 'km' && hasPlannedRunning && schedule.kmMax > 0;
   const values = buckets.map(bucket => bucket.runs.length ? (metric === 'km' ? bucket.km : bucket[metric]) : null);
   const observed = values.filter(value => value !== null);
-  const upper = metric === 'km' ? Math.max(5, ...observed, ...(showPlan ? weeks.map(week => week.planned[1]) : [])) * 1.12 : metric === 'pace' ? Math.max(60, ...observed) * 1.12 : Math.max(10, ...observed) * 1.12;
+  const upper = metric === 'km' ? Math.max(5, ...observed, ...(showPlan ? [schedule.kmMax] : [])) * 1.12 : metric === 'pace' ? Math.max(60, ...observed) * 1.12 : Math.max(10, ...observed) * 1.12;
   const lower = metric === 'pace' && observed.length ? Math.max(0, Math.min(...observed) * .8) : 0;
   const left = 52, right = 660, top = 22, bottom = 222;
   const x = index => left + index / (buckets.length - 1) * (right - left);
@@ -96,7 +87,7 @@ export function RunningProgress({sessions, plan}) {
     }
     return segment;
   }).join(' ');
-  const planBand = `${weeks.map((week, index) => `${index ? 'L' : 'M'}${x(index)},${y(week.planned[1])}`).join(' ')} ${[...weeks].reverse().map((week, index) => `L${x(11 - index)},${y(week.planned[0])}`).join(' ')} Z`;
+  const planBand = `M${left},${y(schedule.kmMax)} L${right},${y(schedule.kmMax)} L${right},${y(schedule.kmMin)} L${left},${y(schedule.kmMin)} Z`;
   const selectedValue = values[activeIndex];
   const unit = metric === 'km' ? 'км' : metric === 'pace' ? 'мин/км' : 'мин';
   const axisLabel = value => metric === 'pace' ? minutes(value) : format(value);
@@ -115,10 +106,10 @@ export function RunningProgress({sessions, plan}) {
 
 
   return <Panel className="running-progress">
-    <div className="progress-section-heading"><div><p className="running-eyebrow">БЕГ / 12 НЕДЕЛЬ</p><h3>Твой беговой прогресс <ArrowUpRight size={21} aria-hidden="true" /></h3><p className="muted">Дистанция, время и темп сохранённых пробежек.</p></div></div>
+    <div className="progress-section-heading"><div><p className="running-eyebrow">БЕГ / ТВОЙ ТЕМП</p><h3>Твой беговой прогресс <ArrowUpRight size={21} aria-hidden="true" /></h3><p className="muted">Дистанция, время и темп сохранённых пробежек.</p></div></div>
     <div className="progress-switch running-switch" role="group" aria-label="Показатель бегового графика">{[['km', 'Дистанция'], ['pace', 'Темп'], ['minutes', 'Время']].map(([id, label]) => <button key={id} type="button" aria-pressed={metric === id} onClick={() => setMetric(id)}>{label}</button>)}</div>
-    <div className="running-period-controls"><div className="progress-switch running-period-switch" role="group" aria-label="Период бегового графика">{periods.map(([id, label]) => <button key={id} type="button" aria-pressed={period === id} onClick={() => changePeriod(id)}>{label}</button>)}</div>{period !== 'plan' && <div className="running-range-controls"><button type="button" aria-label="Предыдущий период" onClick={() => changePage(-1)}><ChevronLeft size={18} aria-hidden="true" /></button><span>{shortDate(start)} {start.getFullYear()} – {shortDate(rangeEnd)} {rangeEnd.getFullYear()}</span><button type="button" aria-label="Следующий период" disabled={page >= 0} onClick={() => changePage(1)}><ChevronRight size={18} aria-hidden="true" /></button></div>}</div>
-    <div className="running-summary" aria-live="polite"><div><span className="muted">{active.label}</span><strong>{selectedValue === null ? '—' : metric === 'pace' ? minutes(selectedValue) : format(selectedValue)} <small>{unit}</small></strong></div><div className="running-summary-plan">{showPlan ? <><span className="muted">Ориентир по плану</span><strong>≈ {active.planned[0] === active.planned[1] ? active.planned[0] : active.planned.join('–')} км</strong></> : <><span className="muted">Пробежки за период</span><strong>{active.runs.length}</strong></>}</div></div>
+    <div className="running-period-controls"><div className="progress-switch running-period-switch" role="group" aria-label="Период бегового графика">{periods.map(([id, label]) => <button key={id} type="button" aria-pressed={period === id} onClick={() => changePeriod(id)}>{label}</button>)}</div><div className="running-range-controls"><button type="button" aria-label="Предыдущий период" onClick={() => changePage(-1)}><ChevronLeft size={18} aria-hidden="true" /></button><span>{shortDate(start)} {start.getFullYear()} – {shortDate(rangeEnd)} {rangeEnd.getFullYear()}</span><button type="button" aria-label="Следующий период" disabled={page >= 0} onClick={() => changePage(1)}><ChevronRight size={18} aria-hidden="true" /></button></div></div>
+    <div className="running-summary" aria-live="polite"><div><span className="muted">{active.label}</span><strong>{selectedValue === null ? '—' : metric === 'pace' ? minutes(selectedValue) : format(selectedValue)} <small>{unit}</small></strong></div><div className="running-summary-plan">{showPlan ? <><span className="muted">Ориентир по плану</span><strong>≈ {schedule.kmMin === schedule.kmMax ? schedule.kmMin : schedule.kmMin + '–' + schedule.kmMax} км</strong></> : <><span className="muted">Пробежки за период</span><strong>{active.runs.length}</strong></>}</div></div>
     <div className="running-chart-scroll"><svg className="running-chart" style={{minWidth: buckets.length * 44 + 80}} viewBox="0 0 690 265" role="group" aria-label={`Бег: ${unit}. Выбери период для подробностей.`}>
       <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="currentColor" stopOpacity=".17" /><stop offset="100%" stopColor="currentColor" stopOpacity=".02" /></linearGradient></defs>
       {[0, 1, 2, 3, 4].map(tick => {
@@ -126,15 +117,15 @@ export function RunningProgress({sessions, plan}) {
         const position = top + tick / 4 * (bottom - top);
         return <g key={tick} className="running-grid"><line x1={left} x2={right} y1={position} y2={position} /><text x={left - 10} y={position + 4} textAnchor="end">{axisLabel(value)}</text></g>;
       })}
-      {showPlan && <><path d={planBand} className="running-plan-band" /><path d={weeks.map((week, index) => `${index ? 'L' : 'M'}${x(index)},${y((week.planned[0] + week.planned[1]) / 2)}`).join(' ')} className="running-plan-line" /></>}
+      {showPlan && <><path d={planBand} className="running-plan-band" /><path d={`M${left},${y((schedule.kmMin + schedule.kmMax) / 2)} L${right},${y((schedule.kmMin + schedule.kmMax) / 2)}`} className="running-plan-line" /></>}
       <path d={areaPath} fill={`url(#${gradient})`} />
       <path d={actualPath} className="running-actual-line" />
       <line x1={x(activeIndex)} x2={x(activeIndex)} y1={top} y2={bottom} className="running-cursor" />
       {values.map((value, index) => value === null ? null : <circle key={index} cx={x(index)} cy={y(value)} r={activeIndex === index ? 6 : 4} className="running-point" />)}
       {buckets.map((bucket, index) => <g key={bucket.id} role="button" tabIndex={0} data-index={index} aria-pressed={activeIndex === index} aria-label={`${bucket.label}: ${values[index] === null ? 'нет записей' : `${axisLabel(values[index])} ${unit}`}`} onPointerEnter={() => setSelection(bucket.id)} onClick={() => setSelection(bucket.id)} onFocus={() => setSelection(bucket.id)} onKeyDown={event => selectWithKeyboard(event, index)} className="running-hit"><rect x={x(index) - Math.min(24, (right - left) / (buckets.length - 1) / 2)} y={top - 8} width={Math.min(48, (right - left) / (buckets.length - 1))} height={bottom - top + 40} fill="transparent" /><text x={x(index)} y={bottom + 25} textAnchor="middle">{bucket.tick}</text></g>)}
     </svg></div>
-    <div className="running-legend"><span><i />Факт</span>{showPlan && <span><i className="running-legend-plan" />Примерный план</span>}<span className="muted">{period === 'plan' ? 'Недели плана' : period === 'day' ? 'Дни' : period === 'week' ? 'Недели с понедельника' : 'Месяцы'} →</span></div>
-    <p className="muted progress-chart-note">{metric === 'pace' ? 'Средний темп = общее время ÷ дистанция за выбранный период. Чем выше точка, тем быстрее бег. Учитывай, что лёгкие и интервальные тренировки различаются.' : metric === 'km' ? (showPlan ? 'Пунктир — примерный объём из плана, полоса — его диапазон. Факт включает весь сохранённый бег.' : 'Сумма дистанций сохранённых пробежек за период. Даты берутся из записей занятий.') : 'Общее время всех сохранённых пробежек за выбранный период.'} Периоды без записей показаны без точек.</p>
-    <div className="running-week-activities" aria-live="polite"><h4>Пробежки · {active.label}</h4>{!active.runs.length ? <p className="muted">Пока нет записей. Сохрани бег в тренировке — результат появится на графике.</p> : active.runs.map(([key, session]) => <Link key={key} to={'/workouts/' + key} className="running-activity"><div><strong>{names[Number(key.split('-')[1])]}</strong><span>{dateLabel(session.date)}</span></div><div><strong>{format(session.run.km)} км</strong><span>{duration(session.run.sec)}</span></div><div><strong>{pace(session.run.km, session.run.sec)}</strong><span>средний темп</span></div></Link>)}</div>
+    <div className="running-legend"><span><i />Факт</span>{showPlan && <span><i className="running-legend-plan" />Текущий ориентир</span>}<span className="muted">{period === 'day' ? 'Дни' : period === 'week' ? 'Недели с понедельника' : 'Месяцы'} →</span></div>
+    <p className="muted progress-chart-note">{metric === 'pace' ? 'Средний темп = общее время ÷ дистанция за выбранный период. Чем выше точка, тем быстрее бег. Учитывай, что лёгкие и интервальные тренировки различаются.' : metric === 'km' ? (showPlan ? 'Пунктир — текущий недельный ориентир из твоего плана, полоса — его диапазон. Факт включает весь сохранённый бег.' : 'Сумма дистанций сохранённых пробежек за период. Даты берутся из записей занятий.') : 'Общее время всех сохранённых пробежек за выбранный период.'} Периоды без записей показаны без точек.</p>
+    <div className="running-week-activities" aria-live="polite"><h4>Пробежки · {active.label}</h4>{!active.runs.length ? <p className="muted">Пока нет записей. Сохрани бег в тренировке — результат появится на графике.</p> : active.runs.map(([key, session]) => <Link key={key} to={'/workouts/' + key} className="running-activity"><div><strong>{sessionName(key, session)}</strong><span>{dateLabel(session.date)}</span></div><div><strong>{format(session.run.km)} км</strong><span>{duration(session.run.sec)}</span></div><div><strong>{pace(session.run.km, session.run.sec)}</strong><span>средний темп</span></div></Link>)}</div>
   </Panel>;
 }

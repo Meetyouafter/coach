@@ -1,9 +1,11 @@
 import {useEffect, useState} from 'react';
+import {useSearchParams} from 'react-router-dom';
+import {FeelingPicker, FeelingBadge} from './FeelingPicker.jsx';
 import {ErrorNotice} from './ErrorNotice.jsx';
 import {ExerciseDialog} from '../exercises/ExerciseDialog.jsx';
-import {names, ready} from '../../shared/program.js';
-import {sessionWorkout} from '../../shared/plan.js';
-import {dateLabel, describe, itemDone, lastRows, numeric, pace, parseTime, validNumber} from '../journal.js';
+import {ready} from '../../shared/program.js';
+import {sessionWorkout, sessionName} from '../../shared/plan.js';
+import {dateLabel, describeResult, exerciseSummary, itemDone, lastExerciseResults, numeric, pace, parseTime, validNumber} from '../journal.js';
 
 export const statuses = ['Начата', 'Выполнена', 'Облегчена', 'Пропущена'];
 export function Panel({children, className = ''}) {return <section className={'panel ' + className}>{children}</section>;}
@@ -25,44 +27,31 @@ export function RestTimer({until, setUntil}) {
 function Field({label, name, value, onChange, required = false, mode = 'decimal'}) {
   return <label>{label}<input name={name} inputMode={mode} required={required} value={value ?? ''} onChange={event => onChange(event.target.value)} /></label>;
 }
-function LiftForm({journal, sessionKey, session, exercise: e, save, advance, setUntil, showTechnique}) {
-  const records = session.sets[e.id] ?? {};
-  const [slot, setSlot] = useState(() => Array.from({length: e.n}, (_, i) => i).find(i => !records[i]) ?? 0);
+function LiftForm({journal, sessionKey, session, exercise: e, save, advance, showTechnique}) {
+  const summary = exerciseSummary(session, e.id);
+  const previous = lastExerciseResults(journal, e.id, sessionKey)[0];
   const [error, setError] = useState('');
-  const [values, setValues] = useState(records[slot] ?? {kg: '', value: '', effort: ''});
-  const length = Math.max(e.n, slot + 1, ...Object.keys(records).map(i => Number(i) + 1));
-  const previousRows = lastRows(journal, e.id, sessionKey);
-  const previous = previousRows.find(row => row.i === slot) ?? previousRows[0];
-  const select = i => {setSlot(i); setValues(records[i] ?? {kg: '', value: '', effort: ''}); setError('');};
+  const [values, setValues] = useState(() => ({n: summary?.n ?? e.n, kg: summary?.kg ?? '', value: summary?.value ?? '', feeling: summary?.feeling}));
   const field = key => value => {setValues(old => ({...old, [key]: value})); setError('');};
   function submit(event) {
     event.preventDefault();
-    const kg = String(values.kg ?? ''), reps = String(values.value ?? ''), effort = String(values.effort ?? '');
-    if ((kg && !validNumber(kg, 0, 999)) || !validNumber(reps, 1, 999, true) || !validNumber(effort, 1, 10, true)) {setError('Укажи корректный вес, повторы или секунды и усилие от 1 до 10.'); return;}
-    const record = {kg: kg ? numeric(kg) : '', value: numeric(reps), effort: numeric(effort), unit: e.id === 'side' ? 'sec' : 'reps', date: new Date().toISOString()};
-    const nextSession = save(s => {(s.sets[e.id] ??= {})[slot] = record;});
-    setUntil(Date.now() + e.rest * 1000);
-    const next = Array.from({length: e.n}, (_, i) => i).find(i => !nextSession.sets[e.id][i]);
-    if (next === undefined) advance(nextSession);
-    else {setSlot(next); setValues(nextSession.sets[e.id][next] ?? {kg: '', value: '', effort: ''}); setError('');}
+    const n = String(values.n), kg = String(values.kg), reps = String(values.value);
+    if (!validNumber(n, 1, 20, true) || !validNumber(kg, 0, 999) || !validNumber(reps, 1, 999, true)) {setError('Укажи количество подходов от 1 до 20, повторы или секунды от 1 до 999 и вес от 0 до 999 кг.'); return;}
+    const result = {n: numeric(n), kg: numeric(kg), value: numeric(reps), unit: e.id === 'side' ? 'sec' : 'reps', date: new Date().toISOString(), ...(values.feeling ? {feeling: values.feeling} : {})};
+    advance(save(s => {(s.results ??= {})[e.id] = result;}));
   }
-  return <Panel><h2>{e.name}</h2><p>{e.n} × {e.reps} · старт {e.weight}</p><p className="muted">{e.rir ? 'Заканчивай подход, когда чувствуешь, что сможешь сделать ещё ' + (e.rir === '4+' ? 'минимум 4' : e.rir) + ' повторения с правильной техникой.' : 'Дополнительное упражнение'}</p>
-    <button onClick={() => showTechnique(e)}>Техника</button>
-    <div className="row slots">{Array.from({length}, (_, i) => <button key={i} aria-current={i === slot} onClick={() => select(i)}>{i + 1}{records[i]?.skip ? ' · пропуск' : records[i] ? ' ✓' : ''}</button>)}</div>
-    <h3>Подход № {slot + 1}</h3>
-    {previous ? <><p className="muted">Прошлый подход № {previous.i + 1} · {previous.date ? dateLabel(previous.date) : previous.k} · {describe(previous)}</p><button onClick={() => setValues({kg: previous.kg ?? '', value: previous.value ?? '', effort: previous.effort ?? ''})}>Повторить значения</button></> : <p className="muted">Предыдущих подходов пока нет</p>}
-    <form id="workout-form" className="grid" noValidate onSubmit={submit}>
-      <Field label="Вес, кг" name="kg" value={values.kg} onChange={field('kg')} />
-      <Field label={e.id === 'side' ? 'Секунды на сторону' : 'Повторы'} name="reps" mode="numeric" required value={values.value} onChange={field('value')} />
-      <Field label="Усилие 1–10" name="effort" mode="numeric" required value={values.effort} onChange={field('effort')} />
+  return <Panel><p className="tag">Итог упражнения</p><h2>{e.name}</h2><p className="muted">По плану: {e.n} × {e.reps} · {e.weight}</p><p className="exercise-result-hint">Заполни результат после всех подходов. Повторы и вес укажи для одного подхода; 0 кг — без дополнительного веса.</p>
+    <button type="button" onClick={() => showTechnique(e)}>Техника</button>
+    {previous && <div className="exercise-previous-result"><p>В прошлый раз · {dateLabel(previous.date)}</p><strong>{describeResult(previous)}</strong><FeelingBadge value={previous.feeling} /><button type="button" onClick={() => setValues(old => ({...old, n: previous.n, kg: previous.kg, value: previous.value}))}>Повторить значения</button></div>}
+    <form id="workout-form" noValidate onSubmit={submit} className="exercise-result-form">
+      <div className="grid"><Field label="Количество подходов" name="sets" mode="numeric" required value={values.n} onChange={field('n')} /><Field label={e.id === 'side' ? 'Секунды на сторону' : 'Повторы в подходе'} name="reps" mode="numeric" required value={values.value} onChange={field('value')} /><Field label="Вес, кг" name="kg" required value={values.kg} onChange={field('kg')} /></div>
+      <FeelingPicker value={values.feeling} onChange={field('feeling')} />
     </form>
-    <div className="row"><button disabled={length >= 20} onClick={() => select(length)}>Добавить подход</button><button onClick={() => {
-      if (slot >= e.n) {setError('Пропуск доступен для запланированных подходов.'); return;}
-      advance(save(s => {(s.sets[e.id] ??= {})[slot] = {skip: true, date: new Date().toISOString()};}));
-    }}>Пропустить подход</button></div><ErrorNotice title="Подход не сохранён" message={error} />
+    <button type="button" onClick={() => advance(save(s => {(s.results ??= {})[e.id] = {skip: true, date: new Date().toISOString()};}))}>Пропустить упражнение</button>
+    <ErrorNotice title="Итог не сохранён" message={error} />
   </Panel>;
 }
-function RunForm({session, exercise: e, week, day, save, advance}) {
+function RunForm({session, exercise: e, save, advance}) {
   const [values, setValues] = useState(session.run ?? {km: '', time: '', pulse: '', incline: '', effort: ''});
   const [error, setError] = useState('');
   const field = key => value => {setValues(old => ({...old, [key]: value})); setError('');};
@@ -87,11 +76,13 @@ function RunForm({session, exercise: e, week, day, save, advance}) {
   </Panel>;
 }
 export function Workout({journal, sessionKey, update, finish, showTechnique}) {
-  const [week, day] = sessionKey.split('-').map(Number);
   const session = journal.trainingV2.sessions[sessionKey];
-  const list = sessionWorkout(journal, week, day);
-  const [index, setIndex] = useState(() => {const i = list.findIndex(e => !itemDone(session, e)); return i < 0 ? list.length : i;});
-  const [until, setUntil] = useState(0);
+  const list = sessionWorkout(journal, sessionKey);
+  const [params] = useSearchParams();
+  const requestedExercise = params.get('exercise');
+  const requestedIndex = list.findIndex(exercise => exercise.id === requestedExercise);
+  const [index, setIndex] = useState(() => {if (requestedIndex >= 0) return requestedIndex; const i = list.findIndex(e => !itemDone(session, e)); return i < 0 ? list.length : i;});
+  useEffect(() => {if (requestedIndex >= 0) setIndex(requestedIndex);}, [requestedExercise, requestedIndex]);
   const save = change => {
     let next;
     update(j => {next = j.trainingV2.sessions[sessionKey]; change(next);});
@@ -104,10 +95,9 @@ export function Workout({journal, sessionKey, update, finish, showTechnique}) {
   };
   const e = list[index];
   const complete = list.filter(e => itemDone(session, e)).length;
-  return <><Panel><h2>{names[day]} · неделя {week}</h2><p>{session.status} · {complete} из {list.length} блоков</p><progress aria-label="Выполненные блоки" max={list.length} value={complete} /><details><summary>Упражнения и переход к блоку</summary><div className="row">{list.map((e, i) => <button key={e.id} aria-current={i === index} onClick={() => setIndex(i)}>{itemDone(session, e) ? '✓ ' : ''}{e.name}</button>)}</div></details></Panel>
-    <RestTimer until={until} setUntil={setUntil} />
-    {!e ? <Panel><h2>Подведи итог</h2><p>Проверь сохранённые подходы и выбери статус тренировки.</p></Panel> : e.id === 'run' ? <RunForm key={sessionKey + e.id} session={session} exercise={e} week={week} day={day} save={save} advance={advance} /> : <LiftForm key={sessionKey + e.id} journal={journal} sessionKey={sessionKey} session={session} exercise={e} save={save} advance={advance} setUntil={setUntil} showTechnique={showTechnique} />}
+  return <><Panel><h2>{sessionName(sessionKey, session)}</h2><p>{session.status} · {complete} из {list.length} блоков</p><progress aria-label="Выполненные блоки" max={list.length} value={complete} /><details><summary>Упражнения и переход к блоку</summary><div className="row">{list.map((e, i) => <button key={e.id} aria-current={i === index} onClick={() => setIndex(i)}>{itemDone(session, e) ? '✓ ' : ''}{e.name}</button>)}</div></details></Panel>
+    {!e ? <Panel><h2>Подведи итог</h2><p>Проверь итоги упражнений и выбери статус тренировки.</p></Panel> : e.id === 'run' ? <RunForm key={sessionKey + e.id} session={session} exercise={e} save={save} advance={advance} /> : <LiftForm key={sessionKey + e.id} journal={journal} sessionKey={sessionKey} session={session} exercise={e} save={save} advance={advance} showTechnique={showTechnique} />}
     <Panel><h3>Статус тренировки</h3>{statuses.map(status => <button key={status} aria-current={session.status === status} onClick={() => {save(s => {s.status = status; s.finished = status === 'Начата' ? null : new Date().toISOString();}); if (status !== 'Начата') finish();}}>{status}</button>)}</Panel>
-    {e && <div className="bottom workout-action"><button className="primary action" type="submit" form="workout-form">{e.id === 'run' ? 'Сохранить бег' : 'Сохранить подход'}</button></div>}
+    {e && <div className="bottom workout-action"><button className="primary action" type="submit" form="workout-form">{e.id === 'run' ? 'Сохранить бег' : 'Сохранить итог упражнения'}</button></div>}
   </>;
 }

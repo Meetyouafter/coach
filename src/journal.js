@@ -35,6 +35,22 @@ function parseTime(value) {
 function pace(km,sec) {const p=Math.round(sec/km);return Math.floor(p/60)+':'+String(p%60).padStart(2,'0')+'/км';}
 
 const dateLabel=value=>value?new Date(value).toLocaleDateString("ru-RU"):"Дата не сохранена";
+const localDateKey=(value=new Date())=>{const date=new Date(value);return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;};
 
-const itemDone=(s,e)=>e.id==="run"?!!s?.run:Array.from({length:e.n},(_,i)=>s?.sets[e.id]?.[i]).every(Boolean);
-export {lastRows,describe,numeric,validNumber,parseTime,pace,dateLabel,itemDone};
+function exerciseSummary(session, id) {
+ const result=session.results?.[id];
+ if(result)return result.skip?null:{...result,maxKg:result.kg};
+ const rows=Object.values(session.sets?.[id]??{}).filter(row=>!row.skip).sort((a,b)=>(a.date??'').localeCompare(b.date??''));
+ if(!rows.length)return null;
+ const last=rows.at(-1),weights=rows.map(row=>row.kg).filter(value=>typeof value==='number'),values=rows.map(row=>row.value);
+ return {n:rows.length,kg:typeof last.kg==='number'?last.kg:0,value:last.value,unit:last.unit??'reps',date:last.date??session.date,legacy:true,maxKg:Math.max(0,...weights),kgRange:weights.length?[Math.min(...weights),Math.max(...weights)]:null,valueRange:[Math.min(...values),Math.max(...values)]};
+}
+const sessionResults=session=>[...new Set([...Object.keys(session.sets??{}),...Object.keys(session.results??{})])].flatMap(id=>{const result=exerciseSummary(session,id);return result?[{id,...result}]:[];});
+const sessionSetCount=session=>sessionResults(session).reduce((total,result)=>total+result.n,0);
+function lastExerciseResults(journal,id,key) {
+ return Object.entries(journal.trainingV2?.sessions??{}).flatMap(([k,session])=>{const result=exerciseSummary(session,id);return k!==key&&result?[{...result,k}]:[];}).sort((a,b)=>b.date.localeCompare(a.date));
+}
+const rangeText=range=>range[0]===range[1]?String(range[0]):range.join('–');
+const describeResult=result=>`${result.n} × ${result.valueRange?rangeText(result.valueRange):result.value} ${result.unit==='sec'?'сек.':'повт.'}${result.legacy&&!result.kgRange?' · вес не указан':' · '+(result.kgRange?rangeText(result.kgRange):result.kg)+' кг'}`;
+const itemDone=(s,e)=>e.id==='run'?!!s?.run:s?.results?.[e.id]?true:Array.from({length:e.n},(_,i)=>s?.sets[e.id]?.[i]).every(Boolean);
+export {lastRows,describe,numeric,validNumber,parseTime,pace,dateLabel,localDateKey,itemDone,exerciseSummary,sessionResults,sessionSetCount,lastExerciseResults,describeResult};

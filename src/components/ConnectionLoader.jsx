@@ -66,7 +66,7 @@ export function ConnectionLoader({label = 'Подключение…'}) {
       <div className="connection-loader-center">
       <div className="connection-loader-watermark">ДВИЖЕНИЕ</div>
       <div className="connection-loader-motion"><span /><span /><span /><span /><span /></div>
-      <div className="connection-loader-title"><div className="connection-loader-title-line"><span>В ТВОЁМ</span></div><div className="connection-loader-title-line"><span>РИТМЕ.</span></div></div>
+      <div className="connection-loader-title"><div className="connection-loader-title-line"><span>КТО СДОХ</span></div><div className="connection-loader-title-line"><span>ТОТ ЛОХ</span></div></div>
       </div>
       <div className="connection-loader-footer"><span>{label}</span><span className="connection-loader-track"><span /></span><span className="connection-loader-caption">ТВОЙ ТЕМП. ТВОЙ ПРОГРЕСС.</span></div>
     </div>

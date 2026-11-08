@@ -58,7 +58,7 @@ export function createJournalStore({userId, request = fetch, events = window, on
       const remote = await response.json();
       if (disposed) return;
       if (remote.userId !== userId) {onUnauthorized(); throw Error('Аккаунт изменился. Войди повторно.');}
-      validate({version:1,journal:remote.journal});
+      validate({version:1,journal:remote.journal}, {allowDuplicateDays:true});
       if (!Number.isSafeInteger(remote.revision) || remote.revision < 0) throw Error('Некорректный ответ базы.');
       if (!snapshot.dirty && start === epoch) {
         revision = remote.revision;

@@ -1,7 +1,8 @@
 import {useRef, useState} from 'react';
 import {EX, names} from '../../shared/program.js';
+import {sessionName} from '../../shared/plan.js';
 import {validate} from '../../shared/validate.js';
-import {dateLabel, describe, lastRows, pace} from '../journal.js';
+import {dateLabel, lastExerciseResults, pace, sessionResults, describeResult} from '../journal.js';
 import {Panel} from '../components/Workout.jsx';
 import {ErrorNotice} from '../components/ErrorNotice.jsx';
 
@@ -21,7 +22,7 @@ export function History({journal, open, update, initialExpanded}) {
   const [error, setError] = useState('');
   const file = useRef(null);
   const sessions = journal.trainingV2?.sessions ?? {};
-  const rows = filter ? lastRows(journal, filter, '') : [];
+  const rows = filter ? lastExerciseResults(journal, filter, '') : [];
   function download() {
     const url = URL.createObjectURL(new Blob([JSON.stringify({version: 1, journal}, null, 2)], {type: 'application/json'}));
     const a = document.createElement('a'); a.href = url; a.download = 'zal-beg-journal.json'; a.click();
@@ -44,10 +45,10 @@ export function History({journal, open, update, initialExpanded}) {
     finally {target.value = '';}
   }
   return <><Panel><h2>История</h2><select aria-label="Упражнение в истории" value={filter} onChange={e => setFilter(e.target.value)}><option value="">Выбрать упражнение</option>{Object.entries(EX).map(([id, e]) => <option key={id} value={id}>{e[0]}</option>)}</select></Panel>
-    {filter && <Panel>{rows.length ? rows.map((r, i) => <p key={i}>{r.date ? dateLabel(r.date) : r.k} · подход {r.i + 1} · {describe(r)}</p>) : <p>Записей пока нет</p>}</Panel>}
+    {filter && <Panel>{rows.length ? rows.map((r, i) => <p key={i}>{r.date ? dateLabel(r.date) : r.k} · {describeResult(r)}</p>) : <p>Записей пока нет</p>}</Panel>}
     {!Object.keys(sessions).length && <Panel><p>Занятий пока нет. Начни тренировку в разделе «Сегодня» или открой план.</p></Panel>}
-    {Object.entries(sessions).sort((a, b) => b[1].date.localeCompare(a[1].date)).map(([key, s]) => {const [week, day] = key.split('-').map(Number); return <Panel key={key}><h3>{names[day]} · неделя {week}</h3><p>{dateLabel(s.date)} · {s.status}</p>{s.run && <p className="run">{s.run.km} км · {s.run.time} · {pace(s.run.km, s.run.sec)} · усилие {s.run.effort}/10{s.run.pulse ? ' · пульс ' + s.run.pulse : ''}</p>}
-      {expanded === key && Object.entries(s.sets).flatMap(([id, records]) => Object.entries(records).map(([i, r]) => <p key={id + i}>{EX[id]?.[0] ?? id} · № {Number(i) + 1} · {r.skip ? 'пропущен' : describe(r)}</p>))}
+    {Object.entries(sessions).sort((a, b) => b[1].date.localeCompare(a[1].date)).map(([key, s]) => {const name = sessionName(key, s); return <Panel key={key}><h3>{name}</h3><p>{dateLabel(s.date)} · {s.status}</p>{s.run && <p className="run">{s.run.km} км · {s.run.time} · {pace(s.run.km, s.run.sec)} · усилие {s.run.effort}/10{s.run.pulse ? ' · пульс ' + s.run.pulse : ''}</p>}
+      {expanded === key && sessionResults(s).map(result => <p key={'result-' + result.id}>{EX[result.id]?.[0] ?? result.id} · {describeResult(result)}</p>)}
       <button onClick={() => setExpanded(expanded === key ? '' : key)}>{expanded === key ? 'Свернуть' : 'Подходы'}</button><button onClick={() => open(key)}>Открыть занятие</button></Panel>;})}
     <Legacy journal={journal} /><Panel><button onClick={download}>Экспорт JSON</button><button onClick={() => file.current.click()}>Импорт JSON</button><input ref={file} type="file" accept=".json,application/json" hidden onChange={upload} /><ErrorNotice title="Не удалось импортировать журнал" message={error} /></Panel>
   </>;
